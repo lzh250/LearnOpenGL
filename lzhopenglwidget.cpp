@@ -3,6 +3,19 @@
 #include <QTime>
 #include <QMatrix4x4>
 
+QVector3D cubePositions[] = {
+    QVector3D( 0.0f,  0.0f,   0.0f),
+    QVector3D( 2.0f,  5.0f, -15.0f),
+    QVector3D(-1.5f, -2.2f,  -2.5f),
+    QVector3D(-3.8f, -2.0f, -12.3f),
+    QVector3D( 2.4f, -0.4f,  -3.5f),
+    QVector3D(-1.7f,  3.0f,  -7.5f),
+    QVector3D( 1.3f, -2.0f,  -2.5f),
+    QVector3D( 1.5f,  2.0f,  -2.5f),
+    QVector3D( 1.5f,  0.2f,  -1.5f),
+    QVector3D(-1.3f,  1.0f,  -1.5f)
+};
+
 float vertices[] = {
     -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
@@ -47,12 +60,12 @@ float vertices[] = {
     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
 
 
-    ,1.0f,  0.5f, 0.0f,  0.0f, 1.0f,
-    2.0f,  0.5f, 0.0f,  1.0f, 1.0f,
-    2.0f,  -0.5f, 0.0f,  1.0f, 0.0f,
-    1.0f,  -0.5f, 0.0f,  0.0f, 0.0f,
-    1.0f,  0.5f, 0.0f,  0.0f, 1.0f,
-    2.0f,  -0.5f, 0.0f,  1.0f, 0.0f
+    // ,1.0f,  0.5f, 0.0f,  0.0f, 1.0f,
+    // 2.0f,  0.5f, 0.0f,  1.0f, 1.0f,
+    // 2.0f,  -0.5f, 0.0f,  1.0f, 0.0f,
+    // 1.0f,  -0.5f, 0.0f,  0.0f, 0.0f,
+    // 1.0f,  0.5f, 0.0f,  0.0f, 1.0f,
+    // 2.0f,  -0.5f, 0.0f,  1.0f, 0.0f
 };
 
 unsigned int VBO, VAO;
@@ -89,6 +102,7 @@ const char *vertex_shader_source = R"(
     uniform float width;
     uniform float height;
     uniform mat4 transform;
+    uniform vec3 cubePosition;
 
     void main()
     {
@@ -110,22 +124,22 @@ const char *vertex_shader_source = R"(
 
         // 自己算的投影透视
         // 应该在CPU方计算，因为r和t，因为r和t不需要每次都计算。
-        // 之前纹理有问题，插值后纹理怪怪的，后找到原因，x和y值算错了
-        vec3 view = model + vec3(0.0f, 0.0f, -3.0f);
-        float imgAspectRatio = width / height;
-        float scale = 0.4142135623730950488016887242097; // tan(angle_of_view * 0.5 * Pi / 180) * n
-        float r = imgAspectRatio * scale;
-        float t = scale;
-        x = view[0] * 1 / r;
-        y = view[1] * 1 / t;
-        z =0;// -view[2] * (100 + 1) / (100 - 1) - 2 * 100 * 1 / (100 - 1);
-        gl_Position = vec4(x, y, z, -view[2]);
+        // 之前纹理有问题，插值后纹理怪怪的，后找到原因，x和y值算错了，错写成x = view[0] * 1 / r / view[2];y = view[1] * 1 / t / view[2];
+        // vec3 view = model + vec3(0.0f, 0.0f, -3.0f);
+        // float imgAspectRatio = width / height;
+        // float scale = 0.4142135623730950488016887242097; // tan(angle_of_view * 0.5 * Pi / 180) * n
+        // float r = imgAspectRatio * scale;
+        // float t = scale;
+        // x = view[0] * 1 / r;
+        // y = view[1] * 1 / t;
+        // z = -view[2] * (100 + 1) / (100 - 1) - 2 * 100 * 1 / (100 - 1);
+        // gl_Position = vec4(x, y, z, -view[2]);
 
         // 网上找的投影透视矩阵
         // 之前顶点有问题，正方形变成长方形，找到原因，Qt方面，在初始化成功之前获取的窗口宽高，永远100x30导致。
-        // vec4 view = vec4(model + vec3(0.0f, 0.0f, -3.0f), 1.0f);
-        // vec4 ok = transform * view;
-        // gl_Position = ok;
+        vec4 view = vec4(model + vec3(0.0f, 0.0f, -3.0f) + cubePosition, 1.0f);
+        vec4 ok = transform * view;
+        gl_Position = ok;
 
          ourTexCoord = aTexCoord;
 })";
@@ -146,7 +160,6 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) : QOpenGLWidget(parent)
 {
     timer.setInterval(10);
     connect(&timer, &QTimer::timeout, this, [&]() {
-        Perspective();
         makeCurrent();
         radian += 1.0/360*M_PI;
 
@@ -198,11 +211,11 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) : QOpenGLWidget(parent)
          *     虚部 x=x⋅sin(θ/2)，y=y⋅sin((θ/2)，z=z⋅sin(θ/2)。
          *  3. 将计算得到的 w,x,y,z 组合成四元数 q=[w,x,y,z]。
         */
+
         glUniform1f(glGetUniformLocation(shader_program, "radian"), radian);
         glUniform1f(glGetUniformLocation(shader_program, "width"), width());
         glUniform1f(glGetUniformLocation(shader_program, "height"), height());
 
-        glUniformMatrix4fv(glGetUniformLocation(shader_program, "transform"), 1, GL_FALSE, perspective.data());
         doneCurrent();
         update();
     });
@@ -247,6 +260,10 @@ void LzhOpenGLWidget::initializeGL()
 {
     initializeOpenGLFunctions();
 
+    Perspective();
+
+    glEnable(GL_DEPTH_TEST);
+
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -274,6 +291,8 @@ void LzhOpenGLWidget::initializeGL()
     }
 
     glUseProgram(shader_program);   // [must] 不然mix无效果
+
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "transform"), 1, GL_FALSE, perspective.data());
 
     glGenTextures(1, &texture1);
     glBindTexture(GL_TEXTURE_2D, texture1);
@@ -303,6 +322,7 @@ void LzhOpenGLWidget::initializeGL()
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
+
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
@@ -313,7 +333,7 @@ void LzhOpenGLWidget::resizeGL(int w, int h)
 void LzhOpenGLWidget::paintGL()
 {
     glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(shader_program);           // [must]
     glActiveTexture(GL_TEXTURE0);
@@ -323,7 +343,10 @@ void LzhOpenGLWidget::paintGL()
     //glBindVertexArray(VAO);
     //glDrawElements(shape_type, 6, GL_UNSIGNED_INT, (const void *)0);
     //glDrawArrays(GL_QUADS, 0, 8);
-    glDrawArrays(shape_type, 0, 42);
+    for (auto &item : cubePositions) {
+        glUniform3f(glGetUniformLocation(shader_program, "cubePosition"), item[0], item[1], item[2]);
+        glDrawArrays(shape_type, 0, 36);
+    }
 }
 
 void LzhOpenGLWidget::Perspective()
@@ -342,15 +365,6 @@ void LzhOpenGLWidget::Perspective()
     perspective(1, 1) = 1.0f / t;
     perspective(1, 2) = 0;
     perspective(1, 3) = 0;
-
-    // perspective(2, 0) = (r + l) / (r - l);
-    // perspective(2, 1) = (t + b) / (t - b);
-    // perspective(2, 2) = -(100.0f + 1.0f) / (100.0f - 1.0f);
-    // perspective(2, 3) = -1.0f;
-    // perspective(3, 0) = 0.0f;
-    // perspective(3, 1) = 0.0f;
-    // perspective(3, 2) = -2 * 100.0 * 0.1 / (100.0f - 1.0f);
-    // perspective(3, 3) = 0.0f;    perspective(2, 0) = (r + l) / (r - l);
 
     perspective(2, 0) = 0.0f;
     perspective(2, 1) = 0.0f;

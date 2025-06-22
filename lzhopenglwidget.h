@@ -35,6 +35,7 @@ private:
     int  shape_type = GL_TRIANGLES;
 
     QMatrix4x4 perspective;
+
 };
 
 #endif // LZHOPENGLWIDGET_H
