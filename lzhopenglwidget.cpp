@@ -101,16 +101,20 @@ const char *vertex_shader_source = R"(
     uniform float radian;
     uniform float width;
     uniform float height;
-    uniform mat4 transform;
+    uniform vec3 rotationAxis;
+    uniform mat4 perspective;
     uniform vec3 cubePosition;
 
     void main()
     {
+        float length = sqrt(rotationAxis[0]*rotationAxis[0] + rotationAxis[1]*rotationAxis[1] + rotationAxis[2]*rotationAxis[2]);
+        if (length < 1e-7) length = 1;
+        float inverseNorm = 1.0f / length;
         float sinhalfangle = sin(0.5 * radian);
         float coshalfangle = cos(0.5 * radian);
-        float x = sinhalfangle;
-        float y = 0.0f;
-        float z = 0.0f;
+        float x = rotationAxis[0] * sinhalfangle * inverseNorm;
+        float y = rotationAxis[1] * sinhalfangle * inverseNorm;
+        float z = rotationAxis[2] * sinhalfangle * inverseNorm;
         float w = coshalfangle;
         vec3 quaternion = vec3(x, y, z);
         vec3 uv = cross(quaternion, aPos);
@@ -138,8 +142,7 @@ const char *vertex_shader_source = R"(
         // 网上找的投影透视矩阵
         // 之前顶点有问题，正方形变成长方形，找到原因，Qt方面，在初始化成功之前获取的窗口宽高，永远100x30导致。
         vec4 view = vec4(model + vec3(0.0f, 0.0f, -3.0f) + cubePosition, 1.0f);
-        vec4 ok = transform * view;
-        gl_Position = ok;
+        gl_Position = perspective * view;
 
          ourTexCoord = aTexCoord;
 })";
@@ -163,7 +166,7 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) : QOpenGLWidget(parent)
         makeCurrent();
         radian += 1.0/360*M_PI;
 
-        //静态欧拉角方式：
+        //静态欧拉角方式,x轴旋转：
 
         // QMatrix4x4 matrix;
         // // matrix.translate(0.5f, -0.5f);
@@ -260,8 +263,6 @@ void LzhOpenGLWidget::initializeGL()
 {
     initializeOpenGLFunctions();
 
-    Perspective();
-
     glEnable(GL_DEPTH_TEST);
 
     glGenBuffers(1, &VBO);
@@ -292,7 +293,7 @@ void LzhOpenGLWidget::initializeGL()
 
     glUseProgram(shader_program);   // [must] 不然mix无效果
 
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "transform"), 1, GL_FALSE, perspective.data());
+    glUniform3f(glGetUniformLocation(shader_program, "rotationAxis"), 1.0f, 0.3f, 0.5f);
 
     glGenTextures(1, &texture1);
     glBindTexture(GL_TEXTURE_2D, texture1);
@@ -327,7 +328,8 @@ void LzhOpenGLWidget::initializeGL()
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
 {
-
+    Perspective();
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "perspective"), 1, GL_FALSE, perspective.data());
 }
 
 void LzhOpenGLWidget::paintGL()
