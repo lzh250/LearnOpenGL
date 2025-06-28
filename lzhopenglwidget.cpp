@@ -58,14 +58,6 @@ float vertices[] = {
     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
     -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-
-
-    // ,1.0f,  0.5f, 0.0f,  0.0f, 1.0f,
-    // 2.0f,  0.5f, 0.0f,  1.0f, 1.0f,
-    // 2.0f,  -0.5f, 0.0f,  1.0f, 0.0f,
-    // 1.0f,  -0.5f, 0.0f,  0.0f, 0.0f,
-    // 1.0f,  0.5f, 0.0f,  0.0f, 1.0f,
-    // 2.0f,  -0.5f, 0.0f,  1.0f, 0.0f
 };
 
 unsigned int VBO, VAO;
@@ -74,7 +66,7 @@ int texture_location;
 unsigned int shader_program;
 unsigned int vertex_shader, fragment_shader;
 
-// const char *vertex_shader_source_old = R"(
+// const char *vertex_shader_source_old_1 = R"(
 //     #version 450 core
 //     layout (location = 0) in vec3 aPos;
 //     layout (location = 1) in vec2 aTexCoord;
@@ -91,7 +83,7 @@ unsigned int vertex_shader, fragment_shader;
 
 //https://blog.csdn.net/csxiaoshui/article/details/65445633
 //四元数
-const char *vertex_shader_source = R"(
+const char *vertex_shader_source_old_2 = R"(
     #version 450 core
     layout (location = 0) in vec3 aPos;
     layout (location = 1) in vec2 aTexCoord;
@@ -123,10 +115,10 @@ const char *vertex_shader_source = R"(
         uuv *= 2.0f;
         vec3 model = aPos + uv + uuv;
 
-        // 正方形不投影透视
+        // 正方形不透视投影
         // gl_Position = vec4(model + vec3(0.5f, -0.5f, -0.0f), 1.0f);
 
-        // 自己算的投影透视
+        // 自己算的透视投影
         // 应该在CPU方计算，因为r和t，因为r和t不需要每次都计算。
         // 之前纹理有问题，插值后纹理怪怪的，后找到原因，x和y值算错了，错写成x = view[0] * 1 / r / view[2];y = view[1] * 1 / t / view[2];
         // vec3 view = model + vec3(0.0f, 0.0f, -3.0f);
@@ -139,10 +131,53 @@ const char *vertex_shader_source = R"(
         // z = -view[2] * (100 + 1) / (100 - 1) - 2 * 100 * 1 / (100 - 1);
         // gl_Position = vec4(x, y, z, -view[2]);
 
-        // 网上找的投影透视矩阵
+        // 透视投影矩阵
         // 之前顶点有问题，正方形变成长方形，找到原因，Qt方面，在初始化成功之前获取的窗口宽高，永远100x30导致。
         vec4 view = vec4(model + vec3(0.0f, 0.0f, -3.0f) + cubePosition, 1.0f);
         gl_Position = perspective * view;
+
+         ourTexCoord = aTexCoord;
+})";
+
+//https://blog.csdn.net/csxiaoshui/article/details/65445633
+//四元数
+const char *vertex_shader_source = R"(
+    #version 450 core
+    layout (location = 0) in vec3 aPos;
+    layout (location = 1) in vec2 aTexCoord;
+
+    out vec2 ourTexCoord;
+
+    uniform float radian;
+    uniform float width;
+    uniform float height;
+    uniform vec3 rotationAxis;
+    uniform mat4 view;
+    uniform mat4 perspective;
+    uniform vec3 cubePosition;
+
+    void main()
+    {
+        float length = sqrt(rotationAxis[0]*rotationAxis[0] + rotationAxis[1]*rotationAxis[1] + rotationAxis[2]*rotationAxis[2]);
+        if (length < 1e-7) length = 1;
+        float inverseNorm = 1.0f / length;
+        float sinhalfangle = sin(0.5 * radian);
+        float coshalfangle = cos(0.5 * radian);
+        float x = rotationAxis[0] * sinhalfangle * inverseNorm;
+        float y = rotationAxis[1] * sinhalfangle * inverseNorm;
+        float z = rotationAxis[2] * sinhalfangle * inverseNorm;
+        float w = coshalfangle;
+        vec3 quaternion = vec3(x, y, z);
+        vec3 uv = cross(quaternion, aPos);
+        vec3 uuv = cross(quaternion, uv);
+        uv *= (2.0f * w);
+        uuv *= 2.0f;
+        vec3 model = aPos + uv + uuv;
+
+        // 透视投影矩阵
+        // 之前顶点有问题，正方形变成长方形，找到原因，Qt方面，在初始化成功之前获取的窗口宽高，永远100x30导致。
+        vec4 m = vec4(model + cubePosition, 1.0f);
+        gl_Position = perspective * view * m;
 
          ourTexCoord = aTexCoord;
 })";
@@ -227,11 +262,8 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) : QOpenGLWidget(parent)
 
 LzhOpenGLWidget::~LzhOpenGLWidget()
 {
-    // if (q_texture != nullptr)
-    // {
-    //     delete q_texture;
-    //     q_texture = nullptr;
-    // }
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
 }
 
 void LzhOpenGLWidget::DrawRectangle()
@@ -293,6 +325,12 @@ void LzhOpenGLWidget::initializeGL()
 
     glUseProgram(shader_program);   // [must] 不然mix无效果
 
+    QVector3D eye(0.0f, 0.0f, 3.0f);
+    QVector3D center;
+    QVector3D up(0.0f, 1.0f, 0.0f);
+    QMatrix4x4 view = LookAt(eye, center, up);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"), 1, GL_FALSE, view.constData());
+
     glUniform3f(glGetUniformLocation(shader_program, "rotationAxis"), 1.0f, 0.3f, 0.5f);
 
     glGenTextures(1, &texture1);
@@ -323,7 +361,6 @@ void LzhOpenGLWidget::initializeGL()
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
-
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
@@ -349,6 +386,34 @@ void LzhOpenGLWidget::paintGL()
         glUniform3f(glGetUniformLocation(shader_program, "cubePosition"), item[0], item[1], item[2]);
         glDrawArrays(shape_type, 0, 36);
     }
+}
+
+QMatrix4x4 LzhOpenGLWidget::LookAt(QVector3D &eye, const QVector3D &center, const QVector3D &up)
+{
+    QVector3D f = (center - eye).normalized();
+    QVector3D s = QVector3D::crossProduct(f, up).normalized();
+    QVector3D u = QVector3D::crossProduct(s, f);
+
+    QMatrix4x4 view;
+    view(0, 0) = s.x();
+    view(0, 1) = s.y();
+    view(0, 2) = s.z();
+    //matrix.setRow(3, QVector4D(0.0f, 0.0f, 0.0f, 1.0f));
+    view(0, 3) = -QVector3D::dotProduct(s, eye);
+    view(1, 0) = u.x();
+    view(1, 1) = u.y();
+    view(1, 2) = u.z();
+    view(1, 3) = -QVector3D::dotProduct(u, eye);
+    view(2, 0) = -f.x();
+    view(2, 1) = -f.y();
+    view(2, 2) = -f.z();
+    view(2, 3) =  QVector3D::dotProduct(f, eye);
+    view(3, 0) = 0.0f;
+    view(3, 1) = 0.0f;
+    view(3, 2) = 0.0f;
+    view(3, 3) = 1.0f;
+
+    return view;
 }
 
 void LzhOpenGLWidget::Perspective()

@@ -25,6 +25,7 @@ protected:
     void paintGL();
 
 private:
+    QMatrix4x4 LookAt( QVector3D &eye, const QVector3D &center, const QVector3D &up);
     void Perspective();
 
 private:
