@@ -24,6 +24,12 @@ protected:
     void resizeGL(int w, int h);
     void paintGL();
 
+    // QWidget interface
+protected:
+    void mouseMoveEvent(QMouseEvent *event);
+    void wheelEvent(QWheelEvent *event);
+    void keyPressEvent(QKeyEvent *event);
+
 private:
     QMatrix4x4 LookAt( QVector3D &eye, const QVector3D &center, const QVector3D &up);
     void Perspective();
@@ -35,8 +41,20 @@ private:
     bool is_draw = false;
     int  shape_type = GL_TRIANGLES;
 
-    QMatrix4x4 perspective;
+    // for LookAt
+    QVector3D cam_pos;
+    QVector3D cam_front;
+    QVector3D cam_up;
 
+    float fov = 45.0f;
+
+    bool first_mouse = true;
+    float last_x = 400;
+    float last_y = 267;
+    float yaw = -90.0f;
+    float pitch = 0.0f;
+
+    QMatrix4x4 perspective;
 };
 
 #endif // LZHOPENGLWIDGET_H

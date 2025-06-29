@@ -1,6 +1,8 @@
 #include "lzhopenglwidget.h"
 
+#include <QKeyEvent>
 #include <QTime>
+// #include <QElapsedTimer>
 #include <QMatrix4x4>
 
 QVector3D cubePositions[] = {
@@ -65,6 +67,8 @@ unsigned int texture1, texture2;
 int texture_location;
 unsigned int shader_program;
 unsigned int vertex_shader, fragment_shader;
+
+// QElapsedTimer elapsed_timer;
 
 // const char *vertex_shader_source_old_1 = R"(
 //     #version 450 core
@@ -196,6 +200,13 @@ void main()
 
 LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) : QOpenGLWidget(parent)
 {
+    setFocusPolicy(Qt::StrongFocus);
+    setMouseTracking(true);
+
+    cam_pos   = QVector3D(0.0f, 0.0f,  3.0f);
+    cam_front = QVector3D(0.0f, 0.0f, -1.0f);
+    cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
+
     timer.setInterval(10);
     connect(&timer, &QTimer::timeout, this, [&]() {
         makeCurrent();
@@ -258,6 +269,7 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) : QOpenGLWidget(parent)
         update();
     });
     timer.start();
+    // elapsed_timer.start();
 }
 
 LzhOpenGLWidget::~LzhOpenGLWidget()
@@ -325,12 +337,6 @@ void LzhOpenGLWidget::initializeGL()
 
     glUseProgram(shader_program);   // [must] 不然mix无效果
 
-    QVector3D eye(0.0f, 0.0f, 3.0f);
-    QVector3D center;
-    QVector3D up(0.0f, 1.0f, 0.0f);
-    QMatrix4x4 view = LookAt(eye, center, up);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"), 1, GL_FALSE, view.constData());
-
     glUniform3f(glGetUniformLocation(shader_program, "rotationAxis"), 1.0f, 0.3f, 0.5f);
 
     glGenTextures(1, &texture1);
@@ -375,16 +381,119 @@ void LzhOpenGLWidget::paintGL()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(shader_program);           // [must]
+
+    // float elapsed_time = (float)elapsed_timer.elapsed();
+    // QVector3D eye(sin(elapsed_time / 1000) * 15, 0.0f, cos(elapsed_time / 1000) * 15);
+    // QVector3D center;
+    // QVector3D up(0.0f, 1.0f, 0.0f);
+    // QMatrix4x4 view = LookAt(eye, center, up);
+    QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "view"), 1, GL_FALSE, view.constData());
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture1);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texture2);
+
     //glBindVertexArray(VAO);
     //glDrawElements(shape_type, 6, GL_UNSIGNED_INT, (const void *)0);
     //glDrawArrays(GL_QUADS, 0, 8);
+
     for (auto &item : cubePositions) {
         glUniform3f(glGetUniformLocation(shader_program, "cubePosition"), item[0], item[1], item[2]);
         glDrawArrays(shape_type, 0, 36);
+    }
+}
+
+void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
+{
+    QPoint pos = event->pos();
+
+    if (first_mouse)
+    {
+        last_x = pos.x();
+        last_y = pos.y();
+        first_mouse = false;
+    }
+
+    float x_offset = pos.x() - last_x;
+    float y_offset = last_y - pos.y();
+    last_x = pos.x();
+    last_y = pos.y();
+
+    x_offset *= 0.05f;
+    y_offset *= 0.05f;
+
+    yaw   += x_offset;
+    pitch += y_offset;
+
+    if (pitch >  89.0f) pitch =  89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+
+    QVector3D front;
+    // 默认朝向是世界X轴方向(不考虑俯仰)，yaw应该初始化为-90
+    front[0] = cos(pitch / 180 * M_PI) * cos(yaw / 180 * M_PI);
+    front[1] = sin(pitch / 180 * M_PI);
+    front[2] = cos(pitch / 180 * M_PI) * sin(yaw / 180 * M_PI);
+    // 默认朝向是世界Z轴负方向(不考虑俯仰)，yaw应该初始化为0
+    // front[0] = cos(pitch / 180 * M_PI) * sin(yaw / 180 * M_PI);
+    // front[1] = sin(pitch / 180 * M_PI);
+    // front[2] = -cos(pitch / 180 * M_PI) * cos(yaw / 180 * M_PI);
+    // 默认朝向是世界Z轴方向(不考虑俯仰)，yaw应该初始化为180
+    // front[0] = -cos(pitch / 180 * M_PI) * sin(yaw / 180 * M_PI);
+    // front[1] = sin(pitch / 180 * M_PI);
+    // front[2] = cos(pitch / 180 * M_PI) * cos(yaw / 180 * M_PI);
+
+    cam_front = front.normalized();
+}
+
+void LzhOpenGLWidget::wheelEvent(QWheelEvent *event)
+{
+    QPoint numPixels = event->pixelDelta();
+    QPoint numDegrees = event->angleDelta() / 8;
+
+    if (!numPixels.isNull())
+    {
+        fov -= numPixels.y();
+    }
+    else if (!numDegrees.isNull()) {
+        QPoint numSteps = numDegrees / 15;
+        fov -= numSteps.y();
+    }
+    if(fov <= 1.0f)
+        fov = 1.0f;
+    if(fov >= 45.0f)
+        fov = 45.0f;
+
+    makeCurrent();
+    Perspective();
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "perspective"), 1, GL_FALSE, perspective.data());
+    doneCurrent();
+
+    event->accept();
+}
+
+void LzhOpenGLWidget::keyPressEvent(QKeyEvent *event)
+{
+    switch (event->key())
+    {
+    case Qt::Key_W:
+        cam_pos += cam_front * 0.05f;
+        break;
+    case Qt::Key_S:
+        cam_pos -= cam_front * 0.05f;
+        break;
+    case Qt::Key_A:
+        cam_pos -= QVector3D::crossProduct(cam_front, cam_up) * 0.05f;
+        break;
+    case Qt::Key_D:
+        cam_pos += QVector3D::crossProduct(cam_front, cam_up) * 0.05f;
+        break;
+    default:
+        break;
+        makeCurrent();
+        update();
+        doneCurrent();
     }
 }
 
@@ -398,7 +507,6 @@ QMatrix4x4 LzhOpenGLWidget::LookAt(QVector3D &eye, const QVector3D &center, cons
     view(0, 0) = s.x();
     view(0, 1) = s.y();
     view(0, 2) = s.z();
-    //matrix.setRow(3, QVector4D(0.0f, 0.0f, 0.0f, 1.0f));
     view(0, 3) = -QVector3D::dotProduct(s, eye);
     view(1, 0) = u.x();
     view(1, 1) = u.y();
@@ -418,7 +526,7 @@ QMatrix4x4 LzhOpenGLWidget::LookAt(QVector3D &eye, const QVector3D &center, cons
 
 void LzhOpenGLWidget::Perspective()
 {
-    float scale = tan(45 * 0.5f * M_PI / 180) * 1.0f;
+    float scale = tan(fov * 0.5f * M_PI / 180) * 1.0f;
     float imgAspectRatio = (float)width() / height();
     float r = imgAspectRatio * scale;
     float t = scale;
