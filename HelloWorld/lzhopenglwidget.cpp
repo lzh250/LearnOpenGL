@@ -3,7 +3,6 @@
 #include <QKeyEvent>
 #include <QTime>
 // #include <QElapsedTimer>
-#include <QMatrix4x4>
 
 QVector3D cubePositions[] = {
     QVector3D( 0.0f,  0.0f,   0.0f),
@@ -309,14 +308,14 @@ void LzhOpenGLWidget::initializeGL()
 
     glEnable(GL_DEPTH_TEST);
 
-    glGenBuffers(1, &VBO);
+    glCreateBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glGenVertexArrays(1, &VAO);
+    glCreateVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
 
-    vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    vertex_shader   = glCreateShader(GL_VERTEX_SHADER);
     fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
     glShaderSource(fragment_shader, 1, &frament_shader_source, NULL);
@@ -366,7 +365,6 @@ void LzhOpenGLWidget::initializeGL()
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)

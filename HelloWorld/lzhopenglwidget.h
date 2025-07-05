@@ -2,7 +2,6 @@
 #define LZHOPENGLWIDGET_H
 
 #include <QOpenGLWidget>
-#include <QWidget>
 #include <QOpenGLFunctions_4_5_Core>
 #include <QTimer>
 #include <QMatrix4x4>
