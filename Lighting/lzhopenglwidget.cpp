@@ -1,5 +1,7 @@
 #include "lzhopenglwidget.h"
 
+#include <QKeyEvent>
+
 float vertices[] = {
     -0.5f, -0.5f, -0.5f,
      0.5f, -0.5f, -0.5f,
@@ -48,21 +50,23 @@ const char *object_vertex_shader_source = R"(
     #version 450 core
 
     layout (location = 0) in vec3 pos;
+    uniform mat4 view;
     uniform mat4 perspective;
 
     void main()
     {
-        gl_Position = perspective * vec4(pos + vec3(0.0f, 0.0f, -8.0f), 1.0f);
+        gl_Position = perspective * view * vec4(pos + vec3(0.0f, 0.0f, -3.0f), 1.0f);
     }
 )";
 
 const char *object_fragment_shader_source = R"(
     #version 450 core
     uniform vec4 objectColor;
+    uniform vec4 lightColor;
 
     void main()
     {
-        gl_FragColor = objectColor;
+        gl_FragColor = objectColor * lightColor;
     }
 )";
 
@@ -70,11 +74,12 @@ const char *light_vertex_shader_source = R"(
     #version 450 core
 
     layout (location = 0) in vec3 pos;
+    uniform mat4 view;
     uniform mat4 perspective;
 
     void main()
     {
-        gl_Position = perspective * vec4(pos * 0.2f + vec3(1.2f, 1.0f, -8.0f), 1.0f);
+        gl_Position = perspective * view * vec4(pos * 0.2f + vec3(1.2f, 1.0f, -2.0f), 1.0f);
     }
 )";
 
@@ -93,6 +98,12 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
     QOpenGLWidget(parent),
     light_pos(1.2f, 1.0f, 2.0f)
 {
+    setFocusPolicy(Qt::StrongFocus);
+    setMouseTracking(true);
+
+    cam_pos   = QVector3D(0.0f, 0.0f,  3.0f);
+    cam_front = QVector3D(0.0f, 0.0f, -1.0f);
+    cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
 }
 
 LzhOpenGLWidget::~LzhOpenGLWidget()
@@ -143,6 +154,7 @@ void LzhOpenGLWidget::initializeGL()
 
     glUseProgram(object_program);
     glUniform4f(glGetUniformLocation(object_program, "objectColor"), 1.0f, 0.5f, 0.31f, 1.0f);
+    glUniform4f(glGetUniformLocation(object_program, "lightColor"), 1.0f, 1.0f, 1.0f, 1.0f);
 
     //==================================================================================
     // light
@@ -187,10 +199,114 @@ void LzhOpenGLWidget::paintGL()
 {
     glClearColor(0.0f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
+
     glUseProgram(object_program);
+    glUniformMatrix4fv(glGetUniformLocation(object_program, "view"), 1, GL_FALSE, view.constData());
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glUseProgram(light_program);
+    glUniformMatrix4fv(glGetUniformLocation(light_program, "view"), 1, GL_FALSE, view.constData());
     glDrawArrays(GL_TRIANGLES, 0, 36);
+}
+
+void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
+{
+    QPoint pos = event->pos();
+
+    if (first_mouse)
+    {
+        last_x = pos.x();
+        last_y = pos.y();
+        first_mouse = false;
+    }
+
+    float x_offset = pos.x() - last_x;
+    float y_offset = last_y - pos.y();
+    last_x = pos.x();
+    last_y = pos.y();
+
+    x_offset *= 0.05f;
+    y_offset *= 0.05f;
+
+    yaw   += x_offset;
+    pitch += y_offset;
+
+    if (pitch >  89.0f) pitch =  89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+
+    QVector3D front;
+    // 默认朝向是世界X轴方向(不考虑俯仰)，yaw应该初始化为-90
+    front[0] = cos(pitch / 180 * M_PI) * cos(yaw / 180 * M_PI);
+    front[1] = sin(pitch / 180 * M_PI);
+    front[2] = cos(pitch / 180 * M_PI) * sin(yaw / 180 * M_PI);
+    // 默认朝向是世界Z轴负方向(不考虑俯仰)，yaw应该初始化为0
+    // front[0] = cos(pitch / 180 * M_PI) * sin(yaw / 180 * M_PI);
+    // front[1] = sin(pitch / 180 * M_PI);
+    // front[2] = -cos(pitch / 180 * M_PI) * cos(yaw / 180 * M_PI);
+    // 默认朝向是世界Z轴方向(不考虑俯仰)，yaw应该初始化为180
+    // front[0] = -cos(pitch / 180 * M_PI) * sin(yaw / 180 * M_PI);
+    // front[1] = sin(pitch / 180 * M_PI);
+    // front[2] = cos(pitch / 180 * M_PI) * cos(yaw / 180 * M_PI);
+
+    cam_front = front.normalized();
+
+    update();
+}
+
+void LzhOpenGLWidget::wheelEvent(QWheelEvent *event)
+{
+    QPoint numPixels = event->pixelDelta();
+    QPoint numDegrees = event->angleDelta() / 8;
+
+    if (!numPixels.isNull())
+    {
+        fov -= numPixels.y();
+    }
+    else if (!numDegrees.isNull()) {
+        QPoint numSteps = numDegrees / 15;
+        fov -= numSteps.y();
+    }
+    if(fov <= 1.0f)
+        fov = 1.0f;
+    if(fov >= 45.0f)
+        fov = 45.0f;
+
+    //makeCurrent();
+    Perspective();
+    glUseProgram(object_program);
+    glUniformMatrix4fv(glGetUniformLocation(object_program, "perspective"), 1, GL_FALSE, perspective.data());
+    glUseProgram(light_program);
+    glUniformMatrix4fv(glGetUniformLocation(light_program, "perspective"), 1, GL_FALSE, perspective.data());
+    update();
+    //doneCurrent();
+
+    event->accept();
+}
+
+void LzhOpenGLWidget::keyPressEvent(QKeyEvent *event)
+{
+    switch (event->key())
+    {
+    case Qt::Key_W:
+        cam_pos += cam_front * 0.05f;
+        update();
+        break;
+    case Qt::Key_S:
+        cam_pos -= cam_front * 0.05f;
+        update();
+        break;
+    case Qt::Key_A:
+        cam_pos -= QVector3D::crossProduct(cam_front, cam_up) * 0.05f;
+        update();
+        break;
+    case Qt::Key_D:
+        cam_pos += QVector3D::crossProduct(cam_front, cam_up) * 0.05f;
+        update();
+        break;
+    default:
+        break;
+    }
 }
 
 QMatrix4x4 LzhOpenGLWidget::LookAt(QVector3D &eye, const QVector3D &center, const QVector3D &up)
@@ -222,7 +338,7 @@ QMatrix4x4 LzhOpenGLWidget::LookAt(QVector3D &eye, const QVector3D &center, cons
 
 void LzhOpenGLWidget::Perspective()
 {
-    float scale = tan(45 * 0.5f * M_PI / 180) * 1.0f;
+    float scale = tan(fov * 0.5f * M_PI / 180) * 1.0f;
     float imgAspectRatio = (float)width() / height();
     float r = imgAspectRatio * scale;
     float t = scale;
