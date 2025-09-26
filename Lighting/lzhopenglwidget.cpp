@@ -3,70 +3,96 @@
 #include <QKeyEvent>
 
 float vertices[] = {
-    -0.5f, -0.5f, -0.5f,
-     0.5f, -0.5f, -0.5f,
-     0.5f,  0.5f, -0.5f,
-     0.5f,  0.5f, -0.5f,
-    -0.5f,  0.5f, -0.5f,
-    -0.5f, -0.5f, -0.5f,
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
 
-    -0.5f, -0.5f,  0.5f,
-     0.5f, -0.5f,  0.5f,
-     0.5f,  0.5f,  0.5f,
-     0.5f,  0.5f,  0.5f,
-    -0.5f,  0.5f,  0.5f,
-    -0.5f, -0.5f,  0.5f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
 
-    -0.5f,  0.5f,  0.5f,
-    -0.5f,  0.5f, -0.5f,
-    -0.5f, -0.5f, -0.5f,
-    -0.5f, -0.5f, -0.5f,
-    -0.5f, -0.5f,  0.5f,
-    -0.5f,  0.5f,  0.5f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
 
-    0.5f,  0.5f,  0.5f,
-    0.5f,  0.5f, -0.5f,
-    0.5f, -0.5f, -0.5f,
-    0.5f, -0.5f, -0.5f,
-    0.5f, -0.5f,  0.5f,
-    0.5f,  0.5f,  0.5f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-    -0.5f, -0.5f, -0.5f,
-     0.5f, -0.5f, -0.5f,
-     0.5f, -0.5f,  0.5f,
-     0.5f, -0.5f,  0.5f,
-    -0.5f, -0.5f,  0.5f,
-    -0.5f, -0.5f, -0.5f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
 
-    -0.5f,  0.5f, -0.5f,
-     0.5f,  0.5f, -0.5f,
-     0.5f,  0.5f,  0.5f,
-     0.5f,  0.5f,  0.5f,
-    -0.5f,  0.5f,  0.5f,
-    -0.5f,  0.5f, -0.5f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
 };
 
 const char *object_vertex_shader_source = R"(
     #version 450 core
 
     layout (location = 0) in vec3 pos;
+    layout (location = 1) in vec3 aNormal;
+
+    out vec3 fragPos;
+    out vec3 normal;
+
+    uniform mat4 model;
     uniform mat4 view;
     uniform mat4 perspective;
 
     void main()
     {
-        gl_Position = perspective * view * vec4(pos + vec3(0.0f, 0.0f, -3.0f), 1.0f);
+        //fragPos = pos;
+        fragPos = vec3(model * vec4(pos, 1.0));
+        normal = aNormal;
+        //gl_Position = perspective * view * vec4(pos + vec3(0.0f, 0.0f, 0.0f), 1.0f);
+        gl_Position = perspective * view * vec4(fragPos, 1.0f);
     }
 )";
 
 const char *object_fragment_shader_source = R"(
     #version 450 core
-    uniform vec4 objectColor;
-    uniform vec4 lightColor;
+
+    in vec3 fragPos;
+    in vec3 normal;
+
+    uniform vec3 lightPos;
+    uniform vec3 lightColor;
+    uniform vec3 objectColor;
 
     void main()
     {
-        gl_FragColor = objectColor * lightColor;
+        // ambient
+        float ambientStrength = 0.1;
+        vec3 ambient = ambientStrength * lightColor;
+
+        // diffuse
+        vec3 norm = normalize(normal);
+        vec3 lightDir = normalize(lightPos - fragPos);
+        float diff = max(dot(norm, lightDir), 0.0);
+
+        vec3 diffuse = diff * lightColor;
+        vec3 result = (ambient + diffuse) * objectColor;
+        gl_FragColor = vec4(result, 1.0);
     }
 )";
 
@@ -74,12 +100,14 @@ const char *light_vertex_shader_source = R"(
     #version 450 core
 
     layout (location = 0) in vec3 pos;
+
+    uniform vec3 lightPos;
     uniform mat4 view;
     uniform mat4 perspective;
 
     void main()
     {
-        gl_Position = perspective * view * vec4(pos * 0.2f + vec3(1.2f, 1.0f, -2.0f), 1.0f);
+        gl_Position = perspective * view * vec4(pos * 0.2f + lightPos, 1.0f);
     }
 )";
 
@@ -128,8 +156,10 @@ void LzhOpenGLWidget::initializeGL()
 
     glCreateVertexArrays(1, &object_VAO);
     glBindVertexArray(object_VAO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (const void *)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (const void *)0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (const void *)(3 * sizeof(float)));
     glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
 
     object_vertex_shader   = glCreateShader(GL_VERTEX_SHADER);
     object_fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -153,14 +183,19 @@ void LzhOpenGLWidget::initializeGL()
     }
 
     glUseProgram(object_program);
-    glUniform4f(glGetUniformLocation(object_program, "objectColor"), 1.0f, 0.5f, 0.31f, 1.0f);
-    glUniform4f(glGetUniformLocation(object_program, "lightColor"), 1.0f, 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(object_program, "objectColor"), 1.0f, 0.5f, 0.31f);
+    glUniform3f(glGetUniformLocation(object_program, "lightColor"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(object_program, "lightPos"), light_pos.x(), light_pos.y(), light_pos.z());
+
+    QMatrix4x4 model;
+    //model.setToIdentity();
+    glUniformMatrix4fv(glGetUniformLocation(object_program, "model"), 1, GL_FALSE, model.constData());
 
     //==================================================================================
     // light
     glCreateVertexArrays(1, &light_VAO);
     glBindVertexArray(light_VAO);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (const void *)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (const void *)0);
     glEnableVertexAttribArray(0);
 
     light_vertex_shader   = glCreateShader(GL_VERTEX_SHADER);
@@ -183,6 +218,7 @@ void LzhOpenGLWidget::initializeGL()
     }
 
     glUseProgram(light_program);
+    glUniform3f(glGetUniformLocation(object_program, "lightPos"), light_pos.x(), light_pos.y(), light_pos.z());
     glUniform4f(glGetUniformLocation(light_program, "lightColor"), 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -197,16 +233,19 @@ void LzhOpenGLWidget::resizeGL(int w, int h)
 
 void LzhOpenGLWidget::paintGL()
 {
-    glClearColor(0.0f, 0.2f, 0.2f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
 
     glUseProgram(object_program);
     glUniformMatrix4fv(glGetUniformLocation(object_program, "view"), 1, GL_FALSE, view.constData());
+    glBindVertexArray(object_VAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+
     glUseProgram(light_program);
     glUniformMatrix4fv(glGetUniformLocation(light_program, "view"), 1, GL_FALSE, view.constData());
+    glBindVertexArray(light_VAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 

@@ -31,10 +31,11 @@ private:
     unsigned int object_program, light_program;
 
     unsigned int VBO;
+
     unsigned int object_VAO;
     unsigned int object_vertex_shader, object_fragment_shader;
 
-    unsigned int light_VAO, light_VBO;
+    unsigned int light_VAO;
     unsigned int light_vertex_shader, light_fragment_shader;
 
     QMatrix4x4 perspective;
