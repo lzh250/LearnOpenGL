@@ -50,8 +50,6 @@ private:
     float fov = 45.0f;
 
     bool first_mouse = true;
-    float last_x = 400;
-    float last_y = 267;
     float yaw = -90.0f;
     float pitch = 0.0f;
 };

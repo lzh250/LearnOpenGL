@@ -270,15 +270,13 @@ void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
 
     if (first_mouse)
     {
-        last_x = pos.x();
-        last_y = pos.y();
+        QCursor::setPos(mapToGlobal(QPoint(width() / 2, height() / 2)));
         first_mouse = false;
+        return;
     }
 
-    float x_offset = pos.x() - last_x;
-    float y_offset = last_y - pos.y();
-    last_x = pos.x();
-    last_y = pos.y();
+    float x_offset = pos.x() - width()/2;
+    float y_offset = height()/2 - pos.y();
 
     x_offset *= 0.05f;
     y_offset *= 0.05f;
@@ -304,6 +302,8 @@ void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
     // front[2] = cos(pitch / 180 * M_PI) * cos(yaw / 180 * M_PI);
 
     cam_front = front.normalized();
+
+    QCursor::setPos(mapToGlobal(QPoint(width() / 2, height() / 2)));
 
     update();
 }
