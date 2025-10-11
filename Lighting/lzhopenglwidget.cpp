@@ -76,6 +76,7 @@ const char *object_fragment_shader_source = R"(
     in vec3 normal;
 
     uniform vec3 lightPos;
+    uniform vec3 viewPos;
     uniform vec3 lightColor;
     uniform vec3 objectColor;
 
@@ -89,12 +90,25 @@ const char *object_fragment_shader_source = R"(
         vec3 norm = normalize(normal);
         vec3 lightDir = normalize(lightPos - fragPos);
         float diff = max(dot(norm, lightDir), 0.0);
-
         vec3 diffuse = diff * lightColor;
-        vec3 result = (ambient + diffuse) * objectColor;
+
+        // specular
+        float specularStrength = 0.5;
+        vec3 viewDir = normalize(viewPos - fragPos);
+        vec3 reflectDir = reflect(-lightDir, norm);
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+        vec3 specular = specularStrength * spec * lightColor;
+
+        // 通过环境光照、漫反射关照、镜面光照得出结果
+        vec3 result = (ambient + diffuse + specular) * objectColor;
         gl_FragColor = vec4(result, 1.0);
     }
 )";
+
+/*
+ * 0.1 0.5 都是可以根据实际情况进行调整的。
+ * 这个32是高光的反光度(Shininess)。一个物体的反光度越高，反射光的能力越强，散射得越少，高光点就会越小。
+*/
 
 const char *light_vertex_shader_source = R"(
     #version 450 core
@@ -240,6 +254,7 @@ void LzhOpenGLWidget::paintGL()
 
     glUseProgram(object_program);
     glUniformMatrix4fv(glGetUniformLocation(object_program, "view"), 1, GL_FALSE, view.constData());
+    glUniform3f(glGetUniformLocation(object_program, "viewPos"), cam_pos.x(), cam_pos.y(), cam_pos.z());
     glBindVertexArray(object_VAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
