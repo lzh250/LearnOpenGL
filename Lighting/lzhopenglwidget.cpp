@@ -91,7 +91,7 @@ const char *object_fragment_shader_source = R"(
     void main()
     {
         // ambient
-        vec3 ambient = lightColor * material.ambient;
+        vec3 ambient = vec3(0.1) * material.ambient;
 
         // diffuse
         vec3 norm = normalize(normal);
