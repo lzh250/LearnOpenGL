@@ -72,6 +72,13 @@ const char *object_vertex_shader_source = R"(
 const char *object_fragment_shader_source = R"(
     #version 450 core
 
+    struct Material {
+        vec3 ambient;
+        vec3 diffuse;
+        vec3 specular;
+        float shininess;
+    };
+
     in vec3 fragPos;
     in vec3 normal;
 
@@ -79,36 +86,30 @@ const char *object_fragment_shader_source = R"(
     uniform vec3 viewPos;
     uniform vec3 lightColor;
     uniform vec3 objectColor;
+    uniform Material material;
 
     void main()
     {
         // ambient
-        float ambientStrength = 0.1;
-        vec3 ambient = ambientStrength * lightColor;
+        vec3 ambient = lightColor * material.ambient;
 
         // diffuse
         vec3 norm = normalize(normal);
         vec3 lightDir = normalize(lightPos - fragPos);
         float diff = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor;
+        vec3 diffuse = lightColor * (diff * material.diffuse);
 
         // specular
-        float specularStrength = 0.5;
         vec3 viewDir = normalize(viewPos - fragPos);
         vec3 reflectDir = reflect(-lightDir, norm);
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-        vec3 specular = specularStrength * spec * lightColor;
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+        vec3 specular = lightColor * (spec * material.specular);
 
         // 通过环境光照、漫反射关照、镜面光照得出结果
-        vec3 result = (ambient + diffuse + specular) * objectColor;
+        vec3 result = ambient + diffuse + specular;
         gl_FragColor = vec4(result, 1.0);
     }
 )";
-
-/*
- * 0.1 0.5 都是可以根据实际情况进行调整的。
- * 这个32是高光的反光度(Shininess)。一个物体的反光度越高，反射光的能力越强，散射得越少，高光点就会越小。
-*/
 
 const char *light_vertex_shader_source = R"(
     #version 450 core
@@ -200,6 +201,10 @@ void LzhOpenGLWidget::initializeGL()
     glUniform3f(glGetUniformLocation(object_program, "objectColor"), 1.0f, 0.5f, 0.31f);
     glUniform3f(glGetUniformLocation(object_program, "lightColor"), 1.0f, 1.0f, 1.0f);
     glUniform3f(glGetUniformLocation(object_program, "lightPos"), light_pos.x(), light_pos.y(), light_pos.z());
+    glUniform3f(glGetUniformLocation(object_program, "material.ambient"), 1.0f, 0.5f, 0.31f);
+    glUniform3f(glGetUniformLocation(object_program, "material.diffuse"), 1.0f, 0.5f, 0.31f);
+    glUniform3f(glGetUniformLocation(object_program, "material.specular"), 0.5f, 0.5f, 0.5f); // specular lighting doesn't have full effect on this object's material
+    glUniform1f(glGetUniformLocation(object_program, "material.shininess"), 32.0f);
 
     QMatrix4x4 model;
     //model.setToIdentity();
