@@ -1,6 +1,7 @@
 #include "lzhopenglwidget.h"
 
 #include <QKeyEvent>
+#include <QDateTime>
 
 float vertices[] = {
     -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
@@ -153,6 +154,22 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
     cam_pos   = QVector3D(0.0f, 0.0f,  3.0f);
     cam_front = QVector3D(0.0f, 0.0f, -1.0f);
     cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
+
+    timer.setInterval(1000);
+    connect(&timer, &QTimer::timeout, this, [&]() {
+        makeCurrent();
+
+        int64_t current_m_epoch = QDateTime::currentMSecsSinceEpoch();
+
+        light_color.setX(sin(current_m_epoch * 2.0));
+        light_color.setY(sin(current_m_epoch * 0.7));
+        light_color.setZ(sin(current_m_epoch * 1.3));
+
+        doneCurrent();
+        update();
+    });
+
+    timer.start();
 }
 
 LzhOpenGLWidget::~LzhOpenGLWidget()
@@ -207,8 +224,11 @@ void LzhOpenGLWidget::initializeGL()
 
     // light properties
     glUniform3f(glGetUniformLocation(object_program, "light.position"), light_pos.x(), light_pos.y(), light_pos.z());
-    glUniform3f(glGetUniformLocation(object_program, "light.ambient"), 0.1f, 0.1f, 0.1f);
-    glUniform3f(glGetUniformLocation(object_program, "light.diffuse"), 0.5f, 0.5f, 0.5f);
+
+    // 环境光参数和漫反射参数改为随着时间变化，就移到 paintGL() 中设置了
+    // glUniform3f(glGetUniformLocation(object_program, "light.ambient"), 0.1f, 0.1f, 0.1f);
+    // glUniform3f(glGetUniformLocation(object_program, "light.diffuse"), 0.5f, 0.5f, 0.5f);
+
     glUniform3f(glGetUniformLocation(object_program, "light.specular"), 1.0f, 1.0f, 1.0f);
 
     // material properties
@@ -249,7 +269,9 @@ void LzhOpenGLWidget::initializeGL()
 
     glUseProgram(light_program);
     glUniform3f(glGetUniformLocation(light_program, "lightPos"), light_pos.x(), light_pos.y(), light_pos.z());
-    glUniform4f(glGetUniformLocation(light_program, "lightColor"), 1.0f, 1.0f, 1.0f, 1.0f);
+
+    // 灯光随着时间变化，就移到 paintGL() 中设置了
+    //glUniform4f(glGetUniformLocation(light_program, "lightColor"), 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
@@ -269,6 +291,12 @@ void LzhOpenGLWidget::paintGL()
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
 
     glUseProgram(object_program);
+
+    QVector3D ambient_color = light_color * 0.1f;
+    QVector3D diffuse_color = light_color * 0.5f;
+    glUniform3f(glGetUniformLocation(object_program, "light.ambient"), ambient_color.x(), ambient_color.y(), ambient_color.z());
+    glUniform3f(glGetUniformLocation(object_program, "light.diffuse"), diffuse_color.x(), diffuse_color.y(), diffuse_color.z());
+
     glUniformMatrix4fv(glGetUniformLocation(object_program, "view"), 1, GL_FALSE, view.constData());
     glUniform3f(glGetUniformLocation(object_program, "viewPos"), cam_pos.x(), cam_pos.y(), cam_pos.z());
     glBindVertexArray(object_VAO);
@@ -276,6 +304,7 @@ void LzhOpenGLWidget::paintGL()
 
     glUseProgram(light_program);
     glUniformMatrix4fv(glGetUniformLocation(light_program, "view"), 1, GL_FALSE, view.constData());
+    glUniform4f(glGetUniformLocation(light_program, "lightColor"), light_color.x(), light_color.y(), light_color.z(), 1.0);
     glBindVertexArray(light_VAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
 }

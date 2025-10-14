@@ -1,6 +1,7 @@
 #ifndef LZHOPENGLWIDGET_H
 #define LZHOPENGLWIDGET_H
 
+#include <QTimer>
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_5_Core>
 #include <QMatrix4x4>
@@ -28,6 +29,8 @@ private:
     void Perspective();
 
 private:
+    QTimer timer;
+
     unsigned int object_program, light_program;
 
     unsigned int VBO;
@@ -41,6 +44,7 @@ private:
     QMatrix4x4 perspective;
 
     QVector3D light_pos;
+    QVector3D light_color;
 
     // for LookAt
     QVector3D cam_pos;
