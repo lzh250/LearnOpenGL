@@ -79,7 +79,7 @@ const char *object_fragment_shader_source = R"(
 
     struct Material {
         sampler2D diffuse;  // 环境光也用这个漫反射的相同值
-        vec3 specular;
+        sampler2D specular;
         float shininess;
     };
 
@@ -114,7 +114,7 @@ const char *object_fragment_shader_source = R"(
         vec3 viewDir = normalize(viewPos - fragPos);
         vec3 reflectDir = reflect(-lightDir, norm);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-        vec3 specular = light.specular * (spec * material.specular);
+        vec3 specular = light.specular * spec * texture(material.specular, texCoords).rgb;
 
         // 通过环境光照、漫反射关照、镜面光照得出结果
         vec3 result = ambient + diffuse + specular;
@@ -210,6 +210,16 @@ void LzhOpenGLWidget::initializeGL()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image_container2.width(), image_container2.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image_container2.mirrored().constBits());
     glGenerateMipmap(GL_TEXTURE_2D);
 
+    glGenTextures(1, &texture_container2_specular);
+    glBindTexture(GL_TEXTURE_2D, texture_container2_specular);
+    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    QImage image_container2_specular(":/res/image_container2_specular.png");
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image_container2_specular.width(), image_container2_specular.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image_container2_specular.mirrored().constBits());
+    glGenerateMipmap(GL_TEXTURE_2D);
+
     //   VAO
     glCreateVertexArrays(1, &object_VAO);
     glBindVertexArray(object_VAO);
@@ -245,6 +255,7 @@ void LzhOpenGLWidget::initializeGL()
     glUseProgram(object_program);
 
     glUniform1i(glGetUniformLocation(object_program, "meterial.diffuse"), 0);
+    glUniform1i(glGetUniformLocation(object_program, "meterial.specular"), 1);
 
     // light properties
     glUniform3f(glGetUniformLocation(object_program, "light.position"), light_pos.x(), light_pos.y(), light_pos.z());
@@ -256,7 +267,6 @@ void LzhOpenGLWidget::initializeGL()
     glUniform3f(glGetUniformLocation(object_program, "light.specular"), 1.0f, 1.0f, 1.0f);
 
     // material properties
-    glUniform3f(glGetUniformLocation(object_program, "material.specular"), 0.5f, 0.5f, 0.5f); // specular lighting doesn't have full effect on this object's material
     glUniform1f(glGetUniformLocation(object_program, "material.shininess"), 32.0f);
 
 
