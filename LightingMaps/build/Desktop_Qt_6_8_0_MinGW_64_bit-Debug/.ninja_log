@@ -1,0 +1,13 @@
+# ninja log v6
+24	266	7825561406036639	LightingMaps_autogen/timestamp	94c6809cbe1a008e
+24	266	7825561406036639	LightingMaps_autogen/mocs_compilation.cpp	94c6809cbe1a008e
+3235	3657	7825561438139660	LightingMaps.exe	5a8ef41fe7eff3a5
+267	2996	7825561408469477	CMakeFiles/LightingMaps.dir/mainwindow.cpp.obj	c38e21f7086d20d
+24	266	7825561406036639	E:/lzh/study/OpenglQt6/github/LightingMaps/build/Desktop_Qt_6_8_0_MinGW_64_bit-Debug/LightingMaps_autogen/timestamp	94c6809cbe1a008e
+24	266	7825561406036639	E:/lzh/study/OpenglQt6/github/LightingMaps/build/Desktop_Qt_6_8_0_MinGW_64_bit-Debug/LightingMaps_autogen/mocs_compilation.cpp	94c6809cbe1a008e
+1201	3535	7822273496356264	CMakeFiles/LightingMaps.dir/main.cpp.obj	b27c184d5b807852
+1182	3472	7822273496163363	CMakeFiles/LightingMaps.dir/LightingMaps_autogen/mocs_compilation.cpp.obj	9823d9d02f2eb93e
+287	3234	7825561408668946	CMakeFiles/LightingMaps.dir/lzhopenglwidget.cpp.obj	145b8495c06dc23f
+278	434	7824746774663323	LightingMaps_autogen/EWIEGA46WW/qrc_res.cpp	d34b1f34e0c4c11d
+278	434	7824746774663323	E:/lzh/study/OpenglQt6/github/LightingMaps/build/Desktop_Qt_6_8_0_MinGW_64_bit-Debug/LightingMaps_autogen/EWIEGA46WW/qrc_res.cpp	d34b1f34e0c4c11d
+472	1545	7824746775141699	CMakeFiles/LightingMaps.dir/LightingMaps_autogen/EWIEGA46WW/qrc_res.cpp.obj	4aeb5a0d318510b4

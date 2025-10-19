@@ -308,13 +308,6 @@ void LzhOpenGLWidget::initializeGL()
 
     glEnable(GL_DEPTH_TEST);
 
-    glCreateBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glCreateVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
     vertex_shader   = glCreateShader(GL_VERTEX_SHADER);
     fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
@@ -338,6 +331,16 @@ void LzhOpenGLWidget::initializeGL()
 
     glUniform3f(glGetUniformLocation(shader_program, "rotationAxis"), 1.0f, 0.3f, 0.5f);
 
+    /*
+     * 关于 glBindTexture(GL_TEXTURE_2D, texture1) 函数，
+     * initializeGL 中的 glBindTexture 只是为了设置属性，并不关心最新的活动单元是谁，所以没必要在之前调用 glActiveTexture。
+     * paintGL 中的 glBindTexture 是渲染时用，需要先通过 glActiveTexture 指定纹理单元，再通过 glBindTexture 使之前设定好的这个纹理去影响最新指定的纹理单元。
+     * 估计 glActiveTexture glBindTexture 这种麻烦的设计，是为了实现着色器中的单元与纹理设定的灵活性。可以方便地控制一个着色器代码变更不同的纹理。
+     * 其实单元是单元，纹理是纹理，不是一一对应的，可以灵活更换，这个很多人可能被网上泛滥的有毒蠢文给搞得不清晰了。
+     * glBindTexture 只能说设置属性时需要bind，渲染时也需要bind，但需要先指定要影响哪个纹理单元，然后再bind。设置属性时的bind不需要关心影响了哪个纹理单元，所以不需要明确指定。
+     * 另外 glActiveTexture 参数 GL_TEXTURE<0 - 32> 对应 作色器 中 SamplerX 变量的值 <0 - 32> 。
+     */
+
     glGenTextures(1, &texture1);
     glBindTexture(GL_TEXTURE_2D, texture1);
     glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -348,7 +351,6 @@ void LzhOpenGLWidget::initializeGL()
     QImage image(":/res/images/container.jpg");
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image.mirrored().constBits());
     glGenerateMipmap(GL_TEXTURE_2D);
-    glUniform1i(glGetUniformLocation(shader_program, "container"), 0);
 
     glGenTextures(1, &texture2);
     glBindTexture(GL_TEXTURE_2D, texture2);
@@ -359,7 +361,16 @@ void LzhOpenGLWidget::initializeGL()
     QImage image2(":/res/images/awesomeface.png");
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image2.width(), image2.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image2.mirrored().constBits());
     glGenerateMipmap(GL_TEXTURE_2D);
+
+    glUniform1i(glGetUniformLocation(shader_program, "container"), 0);
     glUniform1i(glGetUniformLocation(shader_program, "awesomeface"), 1);
+
+    glCreateBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glCreateVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (const void *)0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (const void *)(3 * sizeof(float)));

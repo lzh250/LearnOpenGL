@@ -237,6 +237,16 @@ void LzhOpenGLWidget::initializeGL()
     glUniform3f(glGetUniformLocation(object_program, "material.specular"), 0.5f, 0.5f, 0.5f); // specular lighting doesn't have full effect on this object's material
     glUniform1f(glGetUniformLocation(object_program, "material.shininess"), 32.0f);
 
+    // [练习] 青色 如下，并需要修改 paintGL() 中代码
+    // glUniform3f(glGetUniformLocation(object_program, "light.ambient"),  1.0f, 1.0f, 1.0f);
+    // glUniform3f(glGetUniformLocation(object_program, "light.diffuse"),  1.0f, 1.0f, 1.0f);
+    // glUniform3f(glGetUniformLocation(object_program, "light.specular"), 1.0f, 1.0f, 1.0f);
+    // glUniform3f(glGetUniformLocation(object_program, "material.ambient"), 0.0f, 0.1f, 0.06f);
+    // glUniform3f(glGetUniformLocation(object_program, "material.diffuse"), 0.0f, 0.50980392f, 0.50980392f);
+    // glUniform3f(glGetUniformLocation(object_program, "material.specular"), 0.50196078f, 0.50196078f, 0.50196078f);
+    // glUniform1f(glGetUniformLocation(object_program, "material.shininess"), 32.0f);
+
+
     QMatrix4x4 model;
     //model.setToIdentity();
     glUniformMatrix4fv(glGetUniformLocation(object_program, "model"), 1, GL_FALSE, model.constData());
