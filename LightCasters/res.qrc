@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/container2.png</file>
+        <file>res/container2_specular.png</file>
+    </qresource>
+</RCC>
