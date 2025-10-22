@@ -50,7 +50,7 @@ float vertices[] = {
 
     // positions all containers
     QVector3D cubePositions[] = {
-    QVector3D( 10.0f,  0.0f,  0.0f),
+    QVector3D( 0.0f,  0.0f,  0.0f),
     QVector3D( 2.0f,  5.0f, -15.0f),
     QVector3D(-1.5f, -2.2f, -2.5f),
     QVector3D(-3.8f, -2.0f, -12.3f),
@@ -74,17 +74,30 @@ const char *object_vertex_shader_source = R"(
     out vec2 texCoords;
 
     uniform vec3 cubePosition;
+    uniform vec4 quaternion;
     uniform mat4 model;
     uniform mat4 view;
     uniform mat4 perspective;
 
     void main()
     {
-        //fragPos = vec3(model * vec4(pos, 1.0));   //这个需要c++中把位移做到model中之后传入
-        fragPos = pos + cubePosition;
-        normal = aNormal;
+        vec3 q_xyz = vec3(quaternion);
+
+        vec3 uv = cross(q_xyz, pos);
+        vec3 uuv = cross(q_xyz, uv);
+        uv *= (2.0f * quaternion.w);
+        uuv *= 2.0f;
+        vec3 rotatePos = pos + uv + uuv;
+        fragPos = rotatePos + cubePosition;
+
+        uv = cross(q_xyz, aNormal);
+        uuv = cross(q_xyz, uv);
+        uv *= (2.0f * quaternion.w);
+        uuv *= 2.0f;
+        normal = aNormal + uv + uuv;
+
         texCoords = aTexCoords;
-        //gl_Position = perspective * view * vec4(pos + cubePosition, 1.0f);
+
         gl_Position = perspective * view * vec4(fragPos, 1.0f);
     }
 )";
@@ -350,9 +363,13 @@ void LzhOpenGLWidget::paintGL()
     glBindTexture(GL_TEXTURE_2D, texture_container2_specular);
 
     // 之前遇到问题10个立方体怎么也出不来，只出来一个。原因：uniform 误写成 out
-    for (QVector3D &cube : cubePositions)
+    for (unsigned int i = 0; i < 10; ++i)
     {
-        glUniform3f(glGetUniformLocation(object_program, "cubePosition"), cube.x(), cube.y(), cube.z());
+        glUniform3f(glGetUniformLocation(object_program, "cubePosition"), cubePositions[i].x(), cubePositions[i].y(), cubePositions[i].z());
+        float angle = 20.0f * i;
+        double radians = angle / 180 * M_PI;
+        QVector4D quaternion = MakeQuaternion(QVector3D(1.0f, 0.3f, 0.5f), radians);
+        glUniform4f(glGetUniformLocation(object_program, "quaternion"), quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w());
 
         glBindVertexArray(object_VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
