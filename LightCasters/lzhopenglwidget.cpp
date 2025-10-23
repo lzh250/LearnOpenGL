@@ -112,11 +112,15 @@ const char *object_fragment_shader_source = R"(
     };
 
     struct Light {
-        vec3 direction;
+        vec3 position;
 
         vec3 ambient;
         vec3 diffuse;
         vec3 specular;
+
+        float constant;
+        float linear;
+        float quadratic;
     };
 
     in vec3 fragPos;
@@ -134,7 +138,7 @@ const char *object_fragment_shader_source = R"(
 
         // diffuse
         vec3 norm = normalize(normal);
-        vec3 lightDir = normalize(-light.direction);
+        vec3 lightDir = normalize(light.position - fragPos);
         float diff = max(dot(norm, lightDir), 0.0);
         vec3 diffuse = light.diffuse * diff * texture(material.diffuse, texCoords).rgb;
 
@@ -143,6 +147,14 @@ const char *object_fragment_shader_source = R"(
         vec3 reflectDir = reflect(-lightDir, norm);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
         vec3 specular = light.specular * spec * texture(material.specular, texCoords).rgb;
+
+        // attenuation
+        float distance    = length(light.position - fragPos);
+        float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+
+        ambient  *= attenuation;
+        diffuse  *= attenuation;
+        specular *= attenuation;
 
         // 通过环境光照、漫反射关照、镜面光照得出结果
         vec3 result = ambient + diffuse + specular;
@@ -286,10 +298,13 @@ void LzhOpenGLWidget::initializeGL()
     glUniform1i(glGetUniformLocation(object_program, "meterial.specular"), 1);
 
     // light properties
-    glUniform3f(glGetUniformLocation(object_program, "light.direction"), -0.2f, -1.0f, -0.3f);
+    glUniform3f(glGetUniformLocation(object_program, "light.position"), light_pos.x(), light_pos.y(), light_pos.z());
     glUniform3f(glGetUniformLocation(object_program, "light.ambient"), 0.2f, 0.2f, 0.2f);
     glUniform3f(glGetUniformLocation(object_program, "light.diffuse"), 0.5f, 0.5f, 0.5f);
     glUniform3f(glGetUniformLocation(object_program, "light.specular"), 1.0f, 1.0f, 1.0f);
+    glUniform1f(glGetUniformLocation(object_program, "light.constant"), 1.0f);
+    glUniform1f(glGetUniformLocation(object_program, "light.linear"), 0.09f);
+    glUniform1f(glGetUniformLocation(object_program, "light.specular"), 0.032f);
 
     // material properties
     glUniform1f(glGetUniformLocation(object_program, "material.shininess"), 32.0f);
