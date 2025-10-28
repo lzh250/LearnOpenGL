@@ -112,18 +112,11 @@ const char *object_fragment_shader_source = R"(
     };
 
     struct Light {
-        vec3 position;
         vec3 direction;
-        float cutOff;
-        float outerCutOff;
 
         vec3 ambient;
         vec3 diffuse;
         vec3 specular;
-
-        float constant;
-        float linear;
-        float quadratic;
     };
 
     in vec3 fragPos;
@@ -141,7 +134,7 @@ const char *object_fragment_shader_source = R"(
 
         // diffuse
         vec3 norm = normalize(normal);
-        vec3 lightDir = normalize(light.position - fragPos);
+        vec3 lightDir = normalize(-light.direction);
         float diff = max(dot(norm, lightDir), 0.0);
         vec3 diffuse = light.diffuse * diff * texture(material.diffuse, texCoords).rgb;
 
@@ -150,21 +143,6 @@ const char *object_fragment_shader_source = R"(
         vec3 reflectDir = reflect(-lightDir, norm);
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
         vec3 specular = light.specular * spec * texture(material.specular, texCoords).rgb;
-
-        // spotlight (soft edges)
-        float theta = dot(lightDir, normalize(-light.direction));
-        float epsilon = (light.cutOff - light.outerCutOff);
-        float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
-        diffuse  *= intensity;
-        specular *= intensity;
-
-        // attenuation
-        float distance    = length(light.position - fragPos);
-        float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
-
-        ambient  *= attenuation;
-        diffuse  *= attenuation;
-        specular *= attenuation;
 
         // 通过环境光照、漫反射关照、镜面光照得出结果
         vec3 result = ambient + diffuse + specular;
@@ -308,13 +286,10 @@ void LzhOpenGLWidget::initializeGL()
     glUniform1i(glGetUniformLocation(object_program, "meterial.specular"), 1);
 
     // light properties
-    glUniform3f(glGetUniformLocation(object_program, "light.position"), light_pos.x(), light_pos.y(), light_pos.z());
+    glUniform3f(glGetUniformLocation(object_program, "light.direction"), -0.2f, -1.0f, -0.3f);
     glUniform3f(glGetUniformLocation(object_program, "light.ambient"), 0.2f, 0.2f, 0.2f);
     glUniform3f(glGetUniformLocation(object_program, "light.diffuse"), 0.5f, 0.5f, 0.5f);
     glUniform3f(glGetUniformLocation(object_program, "light.specular"), 1.0f, 1.0f, 1.0f);
-    glUniform1f(glGetUniformLocation(object_program, "light.constant"), 1.0f);
-    glUniform1f(glGetUniformLocation(object_program, "light.linear"), 0.09f);
-    glUniform1f(glGetUniformLocation(object_program, "light.specular"), 0.032f);
 
     // material properties
     glUniform1f(glGetUniformLocation(object_program, "material.shininess"), 32.0f);
@@ -382,19 +357,7 @@ void LzhOpenGLWidget::paintGL()
 
     glUniformMatrix4fv(glGetUniformLocation(object_program, "view"), 1, GL_FALSE, view.constData());
     glUniform3f(glGetUniformLocation(object_program, "viewPos"), cam_pos.x(), cam_pos.y(), cam_pos.z());
-    glUniform3f(glGetUniformLocation(object_program, "light.position"), cam_pos.x(), cam_pos.y(), cam_pos.z());
-    glUniform3f(glGetUniformLocation(object_program, "light.direction"), cam_front.x(), cam_front.y(), cam_front.z());
-    glUniform1f(glGetUniformLocation(object_program, "light.cutOff"), cos(12.5f / 360.0f * M_PI));
-    glUniform1f(glGetUniformLocation(object_program, "light.outerCutOff"), cos(17.5f / 360.0f * M_PI));
     glActiveTexture(GL_TEXTURE0);
-
-    /*
-     * cos(12.5f / 360.0f * M_PI)
-     * 着色器中，我们会计算LightDir和SpotDir向量的点积，这个点积返回的将是一个余弦值而不是角度值，所以我们不能直接使用角度值和余弦值进行比较。
-     * 为了获取角度值我们需要计算点积结果的反余弦，这是一个开销很大的计算。所以为了节约一点性能开销，我们将会计算切光角对应的余弦值，并将它的结果传入片段着色器中。
-     * 由于这两个角度现在都由余弦角来表示了，我们可以直接对它们进行比较而不用进行任何开销高昂的计算。
-    */
-
     glBindTexture(GL_TEXTURE_2D, texture_container2);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texture_container2_specular);
@@ -498,19 +461,19 @@ void LzhOpenGLWidget::keyPressEvent(QKeyEvent *event)
     switch (event->key())
     {
     case Qt::Key_W:
-        cam_pos += cam_front * 0.2f;
+        cam_pos += cam_front * 0.05f;
         update();
         break;
     case Qt::Key_S:
-        cam_pos -= cam_front * 0.2f;
+        cam_pos -= cam_front * 0.05f;
         update();
         break;
     case Qt::Key_A:
-        cam_pos -= QVector3D::crossProduct(cam_front, cam_up) * 0.2f;
+        cam_pos -= QVector3D::crossProduct(cam_front, cam_up) * 0.05f;
         update();
         break;
     case Qt::Key_D:
-        cam_pos += QVector3D::crossProduct(cam_front, cam_up) * 0.2f;
+        cam_pos += QVector3D::crossProduct(cam_front, cam_up) * 0.05f;
         update();
         break;
     default:
