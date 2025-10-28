@@ -304,8 +304,8 @@ void LzhOpenGLWidget::initializeGL()
 
     glUseProgram(object_program);
 
-    glUniform1i(glGetUniformLocation(object_program, "meterial.diffuse"), 0);
-    glUniform1i(glGetUniformLocation(object_program, "meterial.specular"), 1);
+    glUniform1i(glGetUniformLocation(object_program, "material.diffuse"), 0);
+    glUniform1i(glGetUniformLocation(object_program, "material.specular"), 1);
 
     // light properties
     glUniform3f(glGetUniformLocation(object_program, "light.position"), light_pos.x(), light_pos.y(), light_pos.z());
