@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/1.model_loading.fs</file>
+        <file>shader/1.model_loading.vs</file>
+        <file>res/marble.jpg</file>
+        <file>res/metal.png</file>
+    </qresource>
+</RCC>

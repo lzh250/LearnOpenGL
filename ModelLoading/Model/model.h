@@ -56,8 +56,6 @@ private:
         for(unsigned int i = 0; i < node->mNumMeshes; i++)
         {
             aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-            Mesh a = ProcessMesh(mesh, scene);
-            //meshes.push_back(a);
             meshes.push_back(ProcessMesh(mesh, scene));
         }
         // 接下来对它的子节点重复这一过程
