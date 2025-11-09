@@ -73,8 +73,10 @@ void LzhOpenGLWidget::initializeGL()
     initializeOpenGLFunctions();
 
     glEnable(GL_DEPTH_TEST);
-    //glDepthMask(GL_FALSE);
-    glDepthFunc(GL_ALWAYS); // 默认是GL_LESS
+    glEnable(GL_STENCIL_TEST);
+    glDepthFunc(GL_LESS);
+    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
     cam_pos   = QVector3D(0.0f, 0.0f,  3.0f);
     cam_front = QVector3D(0.0f, 0.0f, -1.0f);
@@ -105,6 +107,7 @@ void LzhOpenGLWidget::initializeGL()
     glBindVertexArray(0);
 
     shader.Init(":/shader/1.model_loading.vs", ":/shader/1.model_loading.fs");
+    shader_single_color.Init(":/shader/1.model_loading.vs", ":/shader/2.stencil_single_color.fs");
 
     // load textures
     cube_texture  = LoadTexture(":/res/marble.jpg");
@@ -115,38 +118,79 @@ void LzhOpenGLWidget::initializeGL()
 
     cube_model1.translate(-1.0f, 0.0f, -1.0f);
     cube_model2.translate(2.0f, 0.0f, 0.0f);
+    // Qt的缩放平移算法不同，需要相反顺序执行：先平移后缩放。（说实话，觉得很别扭）
+    single_color_model1 = cube_model1;
+    single_color_model1.scale(1.1f);
+    single_color_model2 = cube_model2;
+    single_color_model2.scale(1.1f);
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
 {
     Perspective();
+    shader_single_color.Use();
+    shader_single_color.SetMat4("projection", perspective);
     shader.Use();
     shader.SetMat4("projection", perspective);
 }
 
 void LzhOpenGLWidget::paintGL()
 {
-    glClearColor(0.01f, 0.01f, 0.01f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+    // set uniforms
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
+    shader_single_color.Use();
+    shader_single_color.SetMat4("view", view);
+
     shader.Use();
     shader.SetMat4("view", view);
 
-    // cubes
-    glBindVertexArray(cube_VAO);
+    // draw floor as normal, but don't write the floor to the stencil buffer, we only care about the containers. We set its mask to 0x00 to not write to the stencil buffer.
+    glStencilMask(0x00);
+
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, cube_texture);
-    shader.SetMat4("model", cube_model1);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    shader.SetMat4("model", cube_model2);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+
     // floor
     glBindVertexArray(plane_VAO);
     glBindTexture(GL_TEXTURE_2D, floor_texture);
     shader.SetMat4("model", plane_model);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
+
+    // 1st. render pass, draw objects as normal, writing to the stencil buffer
+    // --------------------------------------------------------------------
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glStencilMask(0xFF);
+
+    // cubes
+    glBindVertexArray(cube_VAO);
+    glBindTexture(GL_TEXTURE_2D, cube_texture);
+    shader.SetMat4("model", cube_model1);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    shader.SetMat4("model", cube_model2);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // 2nd. render pass: now draw slightly scaled versions of the objects, this time disabling stencil writing.
+    // Because the stencil buffer is now filled with several 1s. The parts of the buffer that are 1 are not drawn, thus only drawing
+    // the objects' size differences, making it look like borders.
+    // -----------------------------------------------------------------------------------------------------------------------------
+    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    glStencilMask(0x00);
+    glDisable(GL_DEPTH_TEST);
+
+    shader_single_color.Use();
+    glBindVertexArray(cube_VAO);
+    glBindTexture(GL_TEXTURE_2D, cube_texture);
+    shader_single_color.SetMat4("model", single_color_model1);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    shader_single_color.SetMat4("model", single_color_model2);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+    glStencilMask(0xFF);
+    glStencilFunc(GL_ALWAYS, 0, 0xFF);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
@@ -212,6 +256,8 @@ void LzhOpenGLWidget::wheelEvent(QWheelEvent *event)
         fov = 45.0f;
 
     Perspective();
+    shader_single_color.Use();
+    shader_single_color.SetMat4("projection", perspective);
     shader.Use();
     shader.SetMat4("projection", perspective);
     update();

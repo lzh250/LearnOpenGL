@@ -37,13 +37,15 @@ private:
     unsigned int cube_VAO, cube_VBO;
     QMatrix4x4   cube_model1;
     QMatrix4x4   cube_model2;
+    QMatrix4x4   single_color_model1;
+    QMatrix4x4   single_color_model2;
     unsigned int cube_texture;
 
     unsigned int plane_VAO, plane_VBO;
     QMatrix4x4   plane_model;
     unsigned int floor_texture;
 
-    Shader shader;
+    Shader shader, shader_single_color;
 
     QMatrix4x4 perspective;
 

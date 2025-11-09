@@ -4,5 +4,6 @@
         <file>shader/1.model_loading.vs</file>
         <file>res/marble.jpg</file>
         <file>res/metal.png</file>
+        <file>shader/2.stencil_single_color.fs</file>
     </qresource>
 </RCC>
