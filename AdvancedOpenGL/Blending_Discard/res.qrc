@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/marble.jpg</file>
+        <file>res/metal.png</file>
+        <file>res/grass.png</file>
+        <file>shader/3.1.blending.fs</file>
+        <file>shader/3.1.blending.vs</file>
+    </qresource>
+</RCC>
