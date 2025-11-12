@@ -195,28 +195,19 @@ void LzhOpenGLWidget::paintGL()
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
     // windows
-    // map<float, QVector3D> sorted;
-    // for (unsigned int i = 0; i < windows.size(); ++i)
-    // {
-    //     float distance = (cam_pos - windows[i]).length();
-    //     sorted[distance] = windows[i];
-    // }
-    // glBindVertexArray(transparent_VAO);
-    // glBindTexture(GL_TEXTURE_2D, transparent_texture);
-    // //for (unsigned int i = 0; i < windows.size(); ++i)
-    // for (map<float, QVector3D>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
-    // {
-    //     transparent_model.setToIdentity();
-    //     transparent_model.translate(it->second);
-    //     shader.SetMat4("model", transparent_model);
-    //     glDrawArrays(GL_TRIANGLES, 0, 6);
-    // }
+    map<float, QVector3D> sorted;
+    for (unsigned int i = 0; i < windows.size(); ++i)
+    {
+        float distance = (cam_pos - windows[i]).length();
+        sorted[distance] = windows[i];
+    }
     glBindVertexArray(transparent_VAO);
     glBindTexture(GL_TEXTURE_2D, transparent_texture);
-    for (unsigned int i = 0; i < windows.size(); i++)
+    //for (unsigned int i = 0; i < windows.size(); ++i)
+    for (map<float, QVector3D>::reverse_iterator it = sorted.rbegin(); it != sorted.rend(); ++it)
     {
         transparent_model.setToIdentity();
-        transparent_model.translate(windows[i]);
+        transparent_model.translate(it->second);
         shader.SetMat4("model", transparent_model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
