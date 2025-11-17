@@ -133,13 +133,33 @@ void LzhOpenGLWidget::paintGL()
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // set uniforms
+    glEnable(GL_DEPTH_TEST);
+
+    // 绘制正常视图
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
 
     shader.Use();
     shader.SetMat4("view", view);
 
     glActiveTexture(GL_TEXTURE0);
+
+    // floor
+    glBindVertexArray(plane_VAO);
+    glBindTexture(GL_TEXTURE_2D, floor_texture);
+    shader.SetMat4("model", plane_model);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // cubes
+    glBindVertexArray(cube_VAO);
+    glBindTexture(GL_TEXTURE_2D, cube_texture);
+    shader.SetMat4("model", cube_model1);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    shader.SetMat4("model", cube_model2);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // 绘制摄像机假如横向旋转180度所看到的视图
+    view = LookAt(cam_pos, cam_pos - cam_front, cam_up);
+    shader.SetMat4("view", view);
 
     // floor
     glBindVertexArray(plane_VAO);
