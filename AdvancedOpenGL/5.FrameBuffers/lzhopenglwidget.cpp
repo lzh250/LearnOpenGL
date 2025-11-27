@@ -56,6 +56,16 @@ float plane_vertices[] = {
     -5.0f, -0.5f, -5.0f,  0.0f, 2.0f,
      5.0f, -0.5f, -5.0f,  2.0f, 2.0f
 };
+float quad_vertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+    // positions   // texCoords
+    -0.3f,  1.0f,  0.0f, 1.0f,
+    -0.3f,  0.7f,  0.0f, 0.0f,
+     0.3f,  0.7f,  1.0f, 0.0f,
+
+    -0.3f,  1.0f,  0.0f, 1.0f,
+     0.3f,  0.7f,  1.0f, 0.0f,
+     0.3f,  1.0f,  1.0f, 1.0f
+};
 
 LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
     QOpenGLWidget(parent)
@@ -69,8 +79,11 @@ LzhOpenGLWidget::~LzhOpenGLWidget()
     makeCurrent();
     glDeleteVertexArrays(1, &cube_VAO);
     glDeleteVertexArrays(1, &plane_VAO);
+    glDeleteVertexArrays(1, &quad_VAO);
     glDeleteBuffers(1, &cube_VBO);
     glDeleteBuffers(1, &plane_VBO);
+    glDeleteBuffers(1, &quad_VBO);
+    glDeleteFramebuffers(1, &framebuffer);
     doneCurrent();
 }
 
@@ -84,7 +97,11 @@ void LzhOpenGLWidget::initializeGL()
     cam_front = QVector3D(0.0f, 0.0f, -1.0f);
     cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
 
+    cube_model1.translate(-1.0f, 0.0f, -1.0f);
+    cube_model2.translate(2.0f, 0.0f, 0.0f);
+
     shader.Init(":/shader/3.1.blending.vs", ":/shader/3.1.blending.fs");
+    screen_shader.Init(":/shader/5.1.framebuffers_screen.vs", ":/shader/5.1.framebuffers_screen.fs");
 
     //cube VAO
     glGenVertexArrays(1, &cube_VAO);
@@ -93,10 +110,9 @@ void LzhOpenGLWidget::initializeGL()
     glBindBuffer(GL_ARRAY_BUFFER, cube_VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
 
     // plane VAO
     glGenVertexArrays(1, &plane_VAO);
@@ -105,10 +121,20 @@ void LzhOpenGLWidget::initializeGL()
     glBindBuffer(GL_ARRAY_BUFFER, plane_VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(plane_vertices), plane_vertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glBindVertexArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+
+    // screen quad VAO
+    glGenVertexArrays(1, &quad_VAO);
+    glGenBuffers(1, &quad_VBO);
+    glBindVertexArray(quad_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quad_VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
 
     // load textures
     cube_texture  = LoadTexture(":/res/marble.jpg");
@@ -117,8 +143,37 @@ void LzhOpenGLWidget::initializeGL()
     shader.Use();
     shader.SetInt("texture1", 0);
 
-    cube_model1.translate(-1.0f, 0.0f, -1.0f);
-    cube_model2.translate(2.0f, 0.0f, 0.0f);
+    screen_shader.Use();
+    screen_shader.SetInt("screenTexture", 0);
+
+    // -------------------------
+    // framebuffer configuration
+    // -------------------------
+
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+    // create a color attachment texture
+    glGenTextures(1, &texture_color_buffer);
+    glBindTexture(GL_TEXTURE_2D, texture_color_buffer);
+    int a = width();
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width(), height(), 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_color_buffer, 0);
+
+    // create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
+
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width(), height()); // use a single renderbuffer object for both a depth AND stencil buffer.
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+
+    // -------------------------
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
@@ -130,15 +185,43 @@ void LzhOpenGLWidget::resizeGL(int w, int h)
 
 void LzhOpenGLWidget::paintGL()
 {
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
     glEnable(GL_DEPTH_TEST);
 
-    // 绘制正常视图
-    QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // 绘制摄像机假如横向旋转180度所看到的视图
     shader.Use();
+    QMatrix4x4 view = LookAt(cam_pos, cam_pos - cam_front, cam_up);
+    shader.SetMat4("view", view);
+
+    // floor
+    glBindVertexArray(plane_VAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, floor_texture);
+    shader.SetMat4("model", plane_model);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // cubes
+    glBindVertexArray(cube_VAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, cube_texture);
+    shader.SetMat4("model", cube_model1);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    shader.SetMat4("model", cube_model2);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());  // QOpenGLWidget默认帧缓冲不等于0，它上下文定义了自己的默认帧缓冲对象进行渲染。 defaultFramebufferObject()返回默认帧缓冲ID。
+
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // 绘制正常视图
+    view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
+
     shader.SetMat4("view", view);
 
     glActiveTexture(GL_TEXTURE0);
@@ -156,24 +239,18 @@ void LzhOpenGLWidget::paintGL()
     glDrawArrays(GL_TRIANGLES, 0, 36);
     shader.SetMat4("model", cube_model2);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
 
-    // 绘制摄像机假如横向旋转180度所看到的视图
-    view = LookAt(cam_pos, cam_pos - cam_front, cam_up);
-    shader.SetMat4("view", view);
+    // now draw the mirror quad with screen texture
+    // --------------------------------------------
+    glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
 
-    // floor
-    glBindVertexArray(plane_VAO);
-    glBindTexture(GL_TEXTURE_2D, floor_texture);
-    shader.SetMat4("model", plane_model);
+    screen_shader.Use();
+    glActiveTexture(GL_TEXTURE0);
+
+    glBindVertexArray(quad_VAO);
+    glBindTexture(GL_TEXTURE_2D, texture_color_buffer);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    // cubes
-    glBindVertexArray(cube_VAO);
-    glBindTexture(GL_TEXTURE_2D, cube_texture);
-    shader.SetMat4("model", cube_model1);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    shader.SetMat4("model", cube_model2);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
 void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
@@ -360,7 +437,7 @@ unsigned int LzhOpenGLWidget::LoadTexture(char const *path)
 
     glBindTexture(GL_TEXTURE_2D, texture_ID);
     // 没使用image.mirred().constBits()。原因：地面和立方体的纹理图什么方向都相同，不影响。草的纹理图与坐标在对应时已经相反了，就不要再镜像了
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image.constBits());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.width(), image.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image.constBits());
     glGenerateMipmap(GL_TEXTURE_2D);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);

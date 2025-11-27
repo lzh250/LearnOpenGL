@@ -43,7 +43,14 @@ private:
     QMatrix4x4   plane_model;
     unsigned int floor_texture;
 
-    Shader shader;
+    unsigned int rbo;
+    unsigned int framebuffer;
+    unsigned int texture_color_buffer;
+    unsigned int quad_VAO, quad_VBO;
+    //QMatrix4x4   plane_model;
+    //unsigned int floor_texture;
+
+    Shader shader, screen_shader;
 
     QMatrix4x4 perspective;
 
