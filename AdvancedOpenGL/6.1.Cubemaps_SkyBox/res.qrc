@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/6.1.cubemaps.fs</file>
+        <file>shader/6.1.cubemaps.vs</file>
+        <file>shader/6.1.skybox.fs</file>
+        <file>shader/6.1.skybox.vs</file>
+        <file>res/skybox/back.jpg</file>
+        <file>res/skybox/bottom.jpg</file>
+        <file>res/skybox/front.jpg</file>
+        <file>res/skybox/left.jpg</file>
+        <file>res/skybox/right.jpg</file>
+        <file>res/skybox/top.jpg</file>
+        <file>res/container.jpg</file>
+    </qresource>
+</RCC>
