@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/8.advanced_glsl.vs</file>
+        <file>shader/8.blue.fs</file>
+        <file>shader/8.green.fs</file>
+        <file>shader/8.red.fs</file>
+        <file>shader/8.yellow.fs</file>
+    </qresource>
+</RCC>

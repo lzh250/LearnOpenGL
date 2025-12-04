@@ -1,0 +1,8 @@
+问题：死活画不上去
+
+原因：
+projection传值没传正确。
+在resizeGL()中调用的Perspective();
+在initializeGL()中传的projection，此时projection还没有被计算出。
+
+解决办法：移到resizeGL()中传projection
