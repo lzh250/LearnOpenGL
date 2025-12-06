@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/9.1.geometry_shader.fs</file>
+        <file>shader/9.1.geometry_shader.gs</file>
+        <file>shader/9.1.geometry_shader.vs</file>
+    </qresource>
+</RCC>
