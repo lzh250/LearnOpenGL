@@ -1,0 +1,6 @@
+问题：没画不上去
+
+原因：
+glDrawArrays()传错值，传成 GL_POINT
+
+解决办法：改成 GL_POINTS
