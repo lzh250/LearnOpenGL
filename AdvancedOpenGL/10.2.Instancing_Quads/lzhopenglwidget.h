@@ -3,7 +3,6 @@
 
 #include "shader.h"
 
-#include <QTimer>
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions_4_5_Core>
 #include <QMatrix4x4>
@@ -34,7 +33,7 @@ private:
     unsigned int LoadTexture(char const *path);
 
 private:
-    unsigned int VAO, VBO;
+    unsigned int VAO, VBO, instance_VBO;
     Shader shader;
 
     // for LookAt
