@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/marble.jpg</file>
+        <file>res/metal.png</file>
+        <file>res/window.png</file>
+        <file>shader/10.1.instancing.fs</file>
+        <file>shader/10.1.instancing.vs</file>
+    </qresource>
+</RCC>
