@@ -1,0 +1,69 @@
+问题：
+MSAA无效果
+
+
+描述：
+用的QSurfaceFormat。
+网上搜索，360AI 告诉用
+    QSurfaceFormat format;
+    format.setSamples(4);
+	QSurfaceFormat::setDefaultFormat(format);
+信了它的鬼话。
+结果不好用。
+换各种地方调用，还是不好用，
+我尝试紧跟在initializeOpenGLFunctions();之后调用，
+我尝试在initializeOpenGLFunctions();之前调用，
+我尝试在构造函数中调用，
+我都尝试在MainWindow构造函数里调用，
+不好用。
+后来用QOpenGLFramebufferObjectFormat尝试，看看效果，没效果，先放弃，因为我还没想学这玩意，就不花时间继续研究它了。
+
+去百度搜索，
+百度AI 告诉用
+    QSurfaceFormat format;
+    format.setSamples(4);
+    setFormat(format);
+给的样例如下。
+    void initializeGL() override {
+        initializeOpenGLFunctions();
+        QSurfaceFormat format;
+        format.setSamples(4); // 4x MSAA
+        setFormat(format);
+        glClearColor(0, 0, 0, 1);
+        glEnable(GL_MULTISAMPLE);
+    }
+我就跟着学了，结果没成功。后来查看无效的各种可能原因和解决办法，按照文章尝试了改版本，无效。网上说让用glx什么工具查看是否支持MSAA，
+我实在不想为了这么个问题专门还安装这东西，也相信不会不支持MSAA。
+还有说可能对应驱动没安装，具体啥驱动没说明，而且我真不想把我电脑安装各种乱七八糟驱动，
+而且我也相信不应该是什么鬼驱动的问题，我这Qt用得好好的，opengl也用得好好的，就这么个抗锯齿就要安装驱动？
+后来终于看到一位网友的文章，里面描述的解决方法，一尝试成功了。
+他告诉要放到QGLWidget的构造函数里面。
+我用的是QOpenGLWidget，与他的老方法略有不同，那当然是要放到QOpenGLWidget构造函数里面了。用的百度提供的那三行代码，成功了。
+又尝试在LzhOpenGLWidget::initializeGL()中调用百度提供的那三行代码，
+在 initializeOpenGLFunctions(); 的前后都试过，不好用。
+
+
+总结：
+    本次过程中，360提供的解决方法不知道有没有问题，反正不适合 QOpengGLWidget。
+	并且360提供的解决方法中告诉的调用位置也不对（这个我在描述里没提）。
+	百度提供的解决方法，调用的函数对了，调用位置告诉错了。
+	网友们说的其实也有些五花八门，而且大都说的不清不楚。
+	只有最后看到这位网友给出了准确方法。
+	
+	成功样例如下：
+    LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
+    	QOpenGLWidget(parent)
+    {
+	    ......
+		
+        QSurfaceFormat format;
+    	format.setSamples(4);
+    	setFormat(format);
+    }
+    void LzhOpenGLWidget::initializeGL()
+    {
+    	initializeOpenGLFunctions();
+    	glEnable(GL_MULTISAMPLE);
+		
+		......
+    }

@@ -2,6 +2,7 @@
 
 #include <QKeyEvent>
 #include <QDateTime>
+#include <QOpenGLFramebufferObjectFormat>
 
 float cube_vertices[] = {
     // positions
@@ -53,6 +54,19 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
 {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
+
+    //**************************************************************************************
+    //
+    // Multisample anti-anliasing (MSAA)
+    // 该抗锯齿在 Qt 中可通过 QSurfaceFormat 进行设定（其他框架有其他设定方式）。
+    // 千万要注意下面两个大坑，否则无效：
+    //    1. 调用位置：必须在 QOpenGLWidget 构造函数中。
+    //    2. 要用QGLWidget::setFormat(format)，而不是QSurfaceFormat::setDefaultFormat(format);
+    //
+    //**************************************************************************************
+    QSurfaceFormat format;
+    format.setSamples(4);
+    setFormat(format);
 }
 
 LzhOpenGLWidget::~LzhOpenGLWidget()
@@ -68,6 +82,7 @@ void LzhOpenGLWidget::initializeGL()
     initializeOpenGLFunctions();
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
 
     cam_pos   = QVector3D(0.0f, 0.0f,  3.0f);
     cam_front = QVector3D(0.0f, 0.0f, -1.0f);
@@ -88,6 +103,7 @@ void LzhOpenGLWidget::initializeGL()
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
 {
+    glViewport(0, 0, w, h);
     Perspective();
     shader.Use();
     shader.SetMat4("projection", perspective);
@@ -106,8 +122,15 @@ void LzhOpenGLWidget::paintGL()
     shader.SetMat4("model", model);
     shader.SetMat4("view", view);
 
+    // QOpenGLFramebufferObjectFormat format;
+    // format.setSamples(4); // 设置样本数为4，更高的数值提供更好的抗锯齿效果，但也会增加内存使用和开销。
+    // QOpenGLFramebufferObject fbo(width(), height(), format);
+    // fbo.bind();
+
     glBindVertexArray(cube_vao);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // fbo.release();
 }
 
 void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
