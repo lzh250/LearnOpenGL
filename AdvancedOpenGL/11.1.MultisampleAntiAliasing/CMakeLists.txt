@@ -33,8 +33,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         ${PROJECT_SOURCES}
         lzhopenglwidget.h lzhopenglwidget.cpp
         res.qrc
-
-
         shader.h
     )
 # Define target properties for Android with Qt 6 as:
@@ -57,9 +55,6 @@ endif()
 
 target_link_libraries(MultisampleAntiAliasing PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(MultisampleAntiAliasing PRIVATE Qt6::OpenGLWidgets)
-
-#target_link_libraries(MultisampleAntiAliasing PRIVATE assimp freetype glfw3 irrKlang)
-target_link_libraries(MultisampleAntiAliasing PRIVATE assimp-vc142-mt)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
