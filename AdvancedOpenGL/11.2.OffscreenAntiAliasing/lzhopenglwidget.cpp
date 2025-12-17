@@ -49,31 +49,35 @@ float cube_vertices[] = {
     -0.5f,  0.5f, -0.5f
 };
 
+float quad_vertices[] = {   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+    // positions   // texCoords
+    -1.0f,  1.0f,  0.0f, 1.0f,
+    -1.0f, -1.0f,  0.0f, 0.0f,
+     1.0f, -1.0f,  1.0f, 0.0f,
+
+    -1.0f,  1.0f,  0.0f, 1.0f,
+     1.0f, -1.0f,  1.0f, 0.0f,
+     1.0f,  1.0f,  1.0f, 1.0f
+};
+
 LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
     QOpenGLWidget(parent)
 {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
-
-    //**************************************************************************************
-    //
-    // Multisample anti-anliasing (MSAA)
-    // 该抗锯齿在 Qt 中可通过 QSurfaceFormat 进行设定（其他框架有其他设定方式）。
-    // 千万要注意下面两个大坑，否则无效：
-    //    1. 调用位置：必须在 QOpenGLWidget 构造函数中。
-    //    2. 要用QGLWidget::setFormat(format)，而不是QSurfaceFormat::setDefaultFormat(format);
-    //
-    //**************************************************************************************
-    QSurfaceFormat format;
-    format.setSamples(4);
-    setFormat(format);
 }
 
 LzhOpenGLWidget::~LzhOpenGLWidget()
 {
     makeCurrent();
     glDeleteVertexArrays(1, &cube_vao);
+    glDeleteVertexArrays(1, &quad_vao);
     glDeleteBuffers(1, &cube_vbo);
+    glDeleteBuffers(1, &quad_vbo);
+    glDeleteFramebuffers(1, &framebuffer);
+    glDeleteFramebuffers(1, &intermediate_fbo);
+    glDeleteTextures(1, &texture_color_buffer_multi_sampled);
+    glDeleteTextures(1, &screen_texture);
     doneCurrent();
 }
 
@@ -82,23 +86,76 @@ void LzhOpenGLWidget::initializeGL()
     initializeOpenGLFunctions();
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_MULTISAMPLE);
 
     cam_pos   = QVector3D(0.0f, 0.0f,  3.0f);
     cam_front = QVector3D(0.0f, 0.0f, -1.0f);
     cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
 
     shader.Init(":/shader/11.1.anti_aliasing.vs", ":/shader/11.1.anti_aliasing.fs");
+    screen_shader.Init(":/shader/11.2.aa_post.vs", ":/shader/11.2.aa_post.fs");
 
     glGenVertexArrays(1, &cube_vao);
     glBindVertexArray(cube_vao);
     glGenBuffers(1, &cube_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, cube_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
-
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3,GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void *)0);
     glBindVertexArray(0);
+
+    glGenVertexArrays(1, &quad_vao);
+    glBindVertexArray(quad_vao);
+    glGenBuffers(1, &quad_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void *)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void *)(sizeof(float) * 2));
+
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glGenTextures(1, &texture_color_buffer_multi_sampled);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, texture_color_buffer_multi_sampled);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGB, 800, 600, GL_TRUE);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, texture_color_buffer_multi_sampled, 0);
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, 800, 600);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_FRAMEBUFFER, rbo);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        qDebug() << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!";
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+
+    //**************************************************************************************
+    //
+    // 因为多重采样缓冲有一点特别，我们不能直接将它们的缓冲图像用于其他运算，
+    // 比如不能直接拿来当普通纹理在默认着色器中进行采样，而是需要有一个把它内容还原成普通纹理的过程。
+    // 这个还原过程通过glBlitFramebuffer来完成，这个函数可将一个缓冲数据块传输到另一个帧缓冲，
+    // 对于多重采样帧缓冲，这个函数将多重采样帧缓冲内容的图像还原数据传输到另外一个普通帧缓冲。
+    //
+    //**************************************************************************************
+    glGenFramebuffers(1, &intermediate_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, intermediate_fbo);
+    glGenTextures(1, &screen_texture);
+    glBindTexture(GL_TEXTURE_2D, screen_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, screen_texture, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        cout << "ERROR::FRAMEBUFFER:: Intermediate framebuffer is not complete!" << endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+
+    screen_shader.Use();
+    screen_shader.SetInt("screenTexture", 0);
+
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
@@ -116,14 +173,30 @@ void LzhOpenGLWidget::paintGL()
 
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
 
-    // 绘制行星
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
     shader.Use();
     QMatrix4x4 model;
     shader.SetMat4("model", model);
     shader.SetMat4("view", view);
-
+    shader.SetMat4("projection", perspective);
     glBindVertexArray(cube_vao);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, intermediate_fbo);
+    glBlitFramebuffer(0, 0, 800, 600, 0, 0, 800, 600, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    screen_shader.Use();
+    glBindVertexArray(quad_vao);
+    glBindTexture(GL_TEXTURE_2D, screen_texture);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)

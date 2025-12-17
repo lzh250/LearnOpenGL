@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/11.1.anti_aliasing.fs</file>
+        <file>shader/11.1.anti_aliasing.vs</file>
+        <file>shader/11.2.aa_post.fs</file>
+        <file>shader/11.2.aa_post.vs</file>
+    </qresource>
+</RCC>
