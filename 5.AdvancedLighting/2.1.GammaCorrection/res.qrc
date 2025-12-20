@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/wood.png</file>
+        <file>shader/2.gamma_correction.fs</file>
+        <file>shader/2.gamma_correction.vs</file>
+    </qresource>
+</RCC>

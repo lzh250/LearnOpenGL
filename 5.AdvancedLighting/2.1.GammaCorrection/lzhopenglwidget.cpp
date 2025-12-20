@@ -15,6 +15,21 @@ float plane_vertices[] = {
      10.0f, -0.5f, -10.0f,  0.0f, 1.0f, 0.0f,  10.0f, 10.0f
 };
 
+// lighting info
+// -------------
+float light_positions[12] = {
+    -3.0f, 0.0f, 0.0f,
+    -1.0f, 0.0f, 0.0f,
+     1.0f, 0.0f, 0.0f,
+     3.0f, 0.0f, 0.0f
+};
+float light_colors[12] = {
+     0.25, 0.25, 0.25,
+     0.50, 0.50, 0.50,
+     0.75, 0.75, 0.75,
+     1.00, 1.00, 1.00
+};
+
 LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
     QOpenGLWidget(parent)
 {
@@ -42,9 +57,7 @@ void LzhOpenGLWidget::initializeGL()
     cam_front = QVector3D(0.0f, 0.0f, -1.0f);
     cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
 
-    light_pos = QVector3D(0.0f, 0.0f, 0.0f);
-
-    shader.Init(":/shader/1.advanced_lighting.vs", ":/shader/1.advanced_lighting.fs");
+    shader.Init(":/shader/2.gamma_correction.vs", ":/shader/2.gamma_correction.fs");
 
     glGenVertexArrays(1, &plane_vao);
     glBindVertexArray(plane_vao);
@@ -59,11 +72,11 @@ void LzhOpenGLWidget::initializeGL()
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 8, (void *)(sizeof(float) * 6));
     glBindVertexArray(0);
 
-    floor_texture = LoadTexture(":/res/wood.png");
+    floor_texture                 = LoadTexture(":/res/wood.png", false);
+    floor_texture_gamma_corrected = LoadTexture(":/res/wood.png", true);
 
     shader.Use();
     shader.SetInt("floorTexture", 0);
-
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
@@ -81,16 +94,16 @@ void LzhOpenGLWidget::paintGL()
 
     shader.Use();
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
-    QMatrix4x4 model;
-    shader.SetMat4("model", model);
     shader.SetMat4("view", view);
     shader.SetMat4("projection", perspective);
+    // set light uniforms
+    glUniform3fv(glGetUniformLocation(shader.ID, "lightPositions"), 4, light_positions);
+    glUniform3fv(glGetUniformLocation(shader.ID, "lightColors"), 4, light_colors);
     shader.SetVec3("viewPos", cam_pos);
-    shader.SetVec3("lightPos", light_pos);
-    shader.SetInt("blinn", blinn);
+    shader.SetInt("gamma", gamma_enabled);
     glBindVertexArray(plane_vao);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, floor_texture);
+    glBindTexture(GL_TEXTURE_2D, gamma_enabled ? floor_texture_gamma_corrected : floor_texture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
@@ -199,7 +212,7 @@ void LzhOpenGLWidget::keyPressEvent(QKeyEvent *event)
         {
             if (b_key_released)
             {
-                blinn = !blinn;
+                gamma_enabled = !gamma_enabled;
             }
             b_key_released = false;
             update();
@@ -293,7 +306,7 @@ QVector4D LzhOpenGLWidget::MakeQuaternion(QVector3D rotation_axis, double radian
     return QVector4D(x, y, z, w);
 }
 
-unsigned int LzhOpenGLWidget::LoadTexture(const char *path)
+unsigned int LzhOpenGLWidget::LoadTexture(const char *path, bool gammaCorrection)
 {
     QImage image(path);
     if (image.isNull())
@@ -302,10 +315,12 @@ unsigned int LzhOpenGLWidget::LoadTexture(const char *path)
         return -1;
     }
 
+    GLenum internalFormat = gammaCorrection ? GL_SRGB_ALPHA : GL_RGBA;
+
     unsigned int texture_id;
     glGenTextures(1, &texture_id);
     glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image.mirrored().constBits());
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.width(), image.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image.mirrored().constBits());
     glGenerateMipmap(GL_TEXTURE_2D);
 
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat
