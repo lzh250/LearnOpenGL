@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/1.advanced_lighting.fs</file>
+        <file>shader/1.advanced_lighting.vs</file>
+        <file>res/wood.png</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,11 @@
+自定义抗锯齿算法
+
+将一个多重采样的纹理图像不进行还原直接传入着色器也是可行的。GLSL提供了这样的选项，让我们能够对纹理图像的每个子样本进行采样，所以我们可以创建我们自己的抗锯齿算法。在大型的图形应用中通常都会这么做。
+
+要想获取每个子样本的颜色值，你需要将纹理uniform采样器设置为sampler2DMS，而不是平常使用的sampler2D：
+uniform sampler2DMS screenTextureMS;
+
+使用texelFetch函数就能够获取每个子样本的颜色值了：
+vec4 colorSample = texelFetch(screenTextureMS, TexCoords, 3);  // 第4个子样本
+
+我们不会深入探究自定义抗锯齿技术的细节，这里仅仅是给你一点启发。

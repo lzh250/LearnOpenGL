@@ -1,0 +1,43 @@
+问题：
+地板只呈现单一颜色图案
+
+原因：
+	代码写错，
+    glEnableVertexAttribArray(2);
+	写成了
+    glEnableVertexAttribArray(1);
+
+
+
+问题：
+按住B后一直反复切换两种光照
+
+原因：
+    Qt长期按住一个键再释放时的事件特性：
+    1. 触发KeyPressEvent，isAutoRepeat()返回false
+    2. 停顿一会儿
+    3. 触发KeyPressEvent，isAutoRepeat()返回true
+    4. 触发KeyReleaseEvent，isAutoRepeat()返回true
+    5. 3 4 循环往复
+    6. 释放按键，触发KeyReleaseEvent，isAutoRepeat()返回false
+
+解决方案：
+	void LzhOpenGLWidget::keyPressEvent(QKeyEvent *event)
+	{
+		if (event->key() == Qt::Key_B && !event->isAutoRepeat())
+		{
+			if (b_key_released)
+			{
+				blinn = !blinn;
+			}
+			b_key_released = false;
+			update();
+		}
+	}
+	void LzhOpenGLWidget::keyReleaseEvent(QKeyEvent *event)
+	{
+		if (event->key() == Qt::Key_B && !event->isAutoRepeat())
+		{
+			b_key_released = true;
+		}
+	}
