@@ -188,10 +188,13 @@ void LzhOpenGLWidget::paintGL()
 
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, depth_map_fbo);
+    glEnable(GL_CULL_FACE);
     glClear(GL_DEPTH_BUFFER_BIT);
     /////// glActiveTexture(GL_TEXTURE0);
     /////// glBindTexture(GL_TEXTURE_2D, wood_texture);
+    glCullFace(GL_FRONT);
     RenderScene(simple_depth_shader);
+    glCullFace(GL_BACK);
 
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
     glViewport(0, 0, width(), height());
