@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/wood.png</file>
+        <file>shader/3.1.1.debug_quad.vs</file>
+        <file>shader/3.1.1.debug_quad_depth.fs</file>
+        <file>shader/3.1.1.shadow_mapping_depth.fs</file>
+        <file>shader/3.1.1.shadow_mapping_depth.vs</file>
+        <file>shader/3.1.2.shadow_mapping.fs</file>
+        <file>shader/3.1.2.shadow_mapping.vs</file>
+    </qresource>
+</RCC>
