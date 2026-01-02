@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/brickwall.jpg</file>
+        <file>res/brickwall_normal.jpg</file>
+        <file>shader/4.normal_mapping.fs</file>
+        <file>shader/4.normal_mapping.vs</file>
+    </qresource>
+</RCC>
