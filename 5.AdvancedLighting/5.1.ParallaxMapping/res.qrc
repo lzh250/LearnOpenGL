@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/4.normal_mapping.fs</file>
+        <file>shader/4.normal_mapping.vs</file>
+        <file>res/bricks2.jpg</file>
+        <file>res/bricks2_disp.jpg</file>
+        <file>res/bricks2_normal.jpg</file>
+    </qresource>
+</RCC>
