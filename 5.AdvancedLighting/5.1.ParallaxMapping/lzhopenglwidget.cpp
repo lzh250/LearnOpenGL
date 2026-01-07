@@ -40,7 +40,7 @@ void LzhOpenGLWidget::initializeGL()
     shader.Use();
     shader.SetInt("diffuseMap", 0);
     shader.SetInt("normalMap" , 1);
-    shader.SetInt("depthMap" , 1);
+    shader.SetInt("depthMap" , 2);
 
     light_pos = QVector3D(0.5f, 1.0f, 0.3f);
 
