@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/6.hdr.fs</file>
+        <file>shader/6.hdr.vs</file>
+        <file>shader/6.lighting.fs</file>
+        <file>shader/6.lighting.vs</file>
+        <file>res/wood.png</file>
+    </qresource>
+</RCC>
