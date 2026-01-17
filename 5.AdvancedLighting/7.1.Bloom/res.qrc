@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/wood.png</file>
+        <file>res/container2.png</file>
+        <file>shader/7.bloom.fs</file>
+        <file>shader/7.bloom.vs</file>
+        <file>shader/7.bloom_final.fs</file>
+        <file>shader/7.bloom_final.vs</file>
+        <file>shader/7.light_box.fs</file>
+    </qresource>
+</RCC>
