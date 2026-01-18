@@ -40,7 +40,7 @@ private:
     Shader       shader, shader_light, shader_bloom_final;
     unsigned int wood_texture, container_exture;
     unsigned int hdr_fbo;
-    unsigned int color_buffer;
+    unsigned int color_buffers[2];
     unsigned int rbo_depth;
     QVector<QVector3D> light_positions;
     QVector<QVector3D> light_colors;
