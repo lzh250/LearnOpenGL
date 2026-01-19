@@ -48,7 +48,8 @@ private:
     unsigned int cube_vao, cube_vbo;
     unsigned int quad_vao, quad_vbo;
 
-    // bool         b_key_released = true;
+    bool         b_key_released = true;
+    bool         bloom = true;
     float        exposure = 1.0f;
 
     // for LookAt

@@ -316,8 +316,10 @@ void LzhOpenGLWidget::paintGL()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader_bloom_final.Use();
     glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, color_buffers[0]);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, pingpong_color_buffers[(amount - 1) % 2]);
-    // hdr_shader.SetInt("hdr", hdr);
+    shader_bloom_final.SetInt("bloom", bloom);
     shader_bloom_final.SetFloat("exposure", exposure);
     RenderQuad();
 
@@ -416,28 +418,28 @@ void LzhOpenGLWidget::keyPressEvent(QKeyEvent *event)
         cam_pos += QVector3D::crossProduct(cam_front, cam_up) * 0.2f;
         update();
         break;
-    // case Qt::Key_B:
-    // {
-    //     //*************************************************************
-    //     // Qt长期按住一个键再释放时的事件特性：
-    //     // 1. 触发KeyPressEvent，isAutoRepeat()返回false
-    //     // 2. 停顿一会儿
-    //     // 3. 触发KeyPressEvent，isAutoRepeat()返回true
-    //     // 4. 触发KeyReleaseEvent，isAutoRepeat()返回true
-    //     // 5. 3 4 循环往复
-    //     // 6. 释放按键，触发KeyReleaseEvent，isAutoRepeat()返回false
-    //     //*************************************************************
-    //     if (!event->isAutoRepeat())
-    //     {
-    //         if (b_key_released)
-    //         {
-    //             hdr = !hdr;
-    //         }
-    //         b_key_released = false;
-    //         update();
-    //     }
-    // }
-    //     break;
+    case Qt::Key_B:
+    {
+        //*************************************************************
+        // Qt长期按住一个键再释放时的事件特性：
+        // 1. 触发KeyPressEvent，isAutoRepeat()返回false
+        // 2. 停顿一会儿
+        // 3. 触发KeyPressEvent，isAutoRepeat()返回true
+        // 4. 触发KeyReleaseEvent，isAutoRepeat()返回true
+        // 5. 3 4 循环往复
+        // 6. 释放按键，触发KeyReleaseEvent，isAutoRepeat()返回false
+        //*************************************************************
+        if (!event->isAutoRepeat())
+        {
+            if (b_key_released)
+            {
+                bloom = !bloom;
+            }
+            b_key_released = false;
+            update();
+        }
+    }
+        break;
     case Qt::Key_Q:
         if (exposure > 0.0f)
         {
@@ -460,10 +462,10 @@ void LzhOpenGLWidget::keyPressEvent(QKeyEvent *event)
 
 void LzhOpenGLWidget::keyReleaseEvent(QKeyEvent *event)
 {
-    // if (event->key() == Qt::Key_B && !event->isAutoRepeat())
-    // {
-    //     b_key_released = true;
-    // }
+    if (event->key() == Qt::Key_B && !event->isAutoRepeat())
+    {
+        b_key_released = true;
+    }
 }
 
 void LzhOpenGLWidget::RenderCube()
