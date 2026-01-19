@@ -17,7 +17,9 @@ LzhOpenGLWidget::~LzhOpenGLWidget()
     glDeleteTextures(1, &wood_texture);
     glDeleteTextures(1, &container_exture);
     glDeleteFramebuffers(1, &hdr_fbo);
+    glDeleteFramebuffers(2, pingpong_fbos);
     glDeleteTextures(2, color_buffers);
+    glDeleteTextures(2, pingpong_color_buffers);
     glDeleteRenderbuffers(1, &rbo_depth);
     glDeleteVertexArrays(1, &cube_vao);
     glDeleteBuffers(1, &cube_vbo);
@@ -38,6 +40,7 @@ void LzhOpenGLWidget::initializeGL()
 
     shader.Init(":/shader/7.bloom.vs", ":/shader/7.bloom.fs");
     shader_light.Init(":/shader/7.bloom.vs", ":/shader/7.light_box.fs");
+    shader_blur.Init(":/shader/7.blur.vs", ":/shader/7.blur.fs");
     shader_bloom_final.Init(":/shader/7.bloom_final.vs", ":/shader/7.bloom_final.fs");
 
     wood_texture = LoadTexture(":/res/wood.png");
@@ -45,13 +48,14 @@ void LzhOpenGLWidget::initializeGL()
 
     // // configure floating point framebuffer
     // // ------------------------------------
+
     glGenFramebuffers(1, &hdr_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, hdr_fbo);
     glGenTextures(2, color_buffers);
     for (int i = 0; i < 2; ++i)
     {
         glBindTexture(GL_TEXTURE_2D, color_buffers[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, 800, 600, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width(), height(), 0, GL_RGBA, GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);  // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
@@ -60,19 +64,43 @@ void LzhOpenGLWidget::initializeGL()
     }
     glGenRenderbuffers(1, &rbo_depth);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 800, 600);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width(), height());
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo_depth);
 
+    // 告知OpenGL我们要渲染到多个颜色缓冲。如果不告知，OpenGL只会渲染到帧缓冲的第一个颜色附件
+    // 片段着色器中通过类似下面方式确定渲染位置
+    //    layout (location = 0) out vec4 FragColor;
+    //    layout (location = 1) out vec4 BrightColor;
+    //
     // tell OpenGL which color attachments we'll use (of this framebuffer) for rendering
     unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
     glDrawBuffers(2, attachments);
 
     // finally check if framebuffer is complete
-    if (glCheckFramebufferStatus(GL_RENDERBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        qDebug() << "Framebuffer not complete!";
+        qDebug() << "1.Framebuffer not complete!";
     }
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+
+    // ping-pong-framebuffer for blurring
+    glGenFramebuffers(2, pingpong_fbos);
+    glGenTextures(2, pingpong_color_buffers);
+    for (unsigned int i = 0; i < 2; ++i)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpong_fbos[i]);
+        glBindTexture(GL_TEXTURE_2D, pingpong_color_buffers[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width(), height(), 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTextureParameteri(pingpong_color_buffers[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTextureParameteri(pingpong_color_buffers[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(pingpong_color_buffers[i], GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTextureParameteri(pingpong_color_buffers[i], GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpong_color_buffers[i], 0);
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            qDebug() << "2.Framebuffer not complete!";
+        }
+    }
 
     // lighting info
     // -------------
@@ -91,6 +119,8 @@ void LzhOpenGLWidget::initializeGL()
     // --------------------
     shader.Use();
     shader.SetInt("diffuseTexture", 0);
+    shader_blur.Use();
+    shader_blur.SetInt("image", 0);
     shader_bloom_final.Use();
     shader_bloom_final.SetInt("scene", 0);
     shader_bloom_final.SetInt("bloomBlur", 1);
@@ -180,7 +210,7 @@ void LzhOpenGLWidget::resizeGL(int w, int h)
 {
     // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, w, h);
+    //glViewport(0, 0, w, h);
     QMatrix4x4 projection = Perspective(fov, (float)w / h, near, far);
     shader.Use();
     shader.SetMat4("projection", projection);
@@ -196,6 +226,7 @@ void LzhOpenGLWidget::paintGL()
     // // 1. render scene into floating point framebuffer
     // // -----------------------------------------------
     glBindFramebuffer(GL_FRAMEBUFFER, hdr_fbo);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader.Use();
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
@@ -259,13 +290,33 @@ void LzhOpenGLWidget::paintGL()
         RenderCube();
     }
 
+    // 2. blur bright fragments with two-pass Gaussian Blur
+    // --------------------------------------------------
+    bool horizontal = true, first_iteration = true;
+    unsigned int amount = 10;
+    shader_blur.Use();
+    glActiveTexture(GL_TEXTURE0);
+    for (unsigned int i = 0; i < amount; ++i)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpong_fbos[i % 2]);
+        shader_blur.SetInt("horizontal", horizontal);
+        glBindTexture(GL_TEXTURE_2D, first_iteration ? color_buffers[1] : pingpong_color_buffers[(i + 1) % 2]);
+        RenderQuad();
+
+        horizontal = !horizontal;
+        if (first_iteration)
+        {
+            first_iteration = false;
+        }
+    }
+
     // 3. now render floating point color buffer to 2D quad and tonemap HDR colors to default framebuffer's (clamped) color range
     // --------------------------------------------------------------------------------------------------------------------------
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader_bloom_final.Use();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, color_buffers[1]);
+    glBindTexture(GL_TEXTURE_2D, pingpong_color_buffers[(amount - 1) % 2]);
     // hdr_shader.SetInt("hdr", hdr);
     shader_bloom_final.SetFloat("exposure", exposure);
     RenderQuad();

@@ -7,5 +7,7 @@
         <file>shader/7.bloom_final.fs</file>
         <file>shader/7.bloom_final.vs</file>
         <file>shader/7.light_box.fs</file>
+        <file>shader/7.blur.fs</file>
+        <file>shader/7.blur.vs</file>
     </qresource>
 </RCC>

@@ -37,10 +37,11 @@ private:
     unsigned int LoadTexture(const char *path);
 
 private:
-    Shader       shader, shader_light, shader_bloom_final;
+    Shader       shader, shader_light, shader_blur, shader_bloom_final;
     unsigned int wood_texture, container_exture;
-    unsigned int hdr_fbo;
+    unsigned int hdr_fbo, pingpong_fbos[2];
     unsigned int color_buffers[2];
+    unsigned int pingpong_color_buffers[2];
     unsigned int rbo_depth;
     QVector<QVector3D> light_positions;
     QVector<QVector3D> light_colors;

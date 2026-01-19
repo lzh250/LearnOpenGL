@@ -59,7 +59,7 @@ void LzhOpenGLWidget::initializeGL()
     glBindRenderbuffer(GL_RENDERBUFFER, rbo_depth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 800, 600);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo_depth);
-    if (glCheckFramebufferStatus(GL_RENDERBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
         qDebug() << "Framebuffer not complete!";
     }
