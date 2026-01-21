@@ -27,6 +27,7 @@ protected:
     void keyReleaseEvent(QKeyEvent *event);
 
 private:
+    void RenderCube();
     void RenderQuad();
 
     QMatrix4x4 LookAt( QVector3D &eye, const QVector3D &center, const QVector3D &up);
@@ -52,6 +53,7 @@ private:
     Shader shader_debug;
 
     unsigned int quad_vao, quad_vbo;
+    unsigned int cube_vao, cube_vbo;
 
     // bool         b_key_released = true;
     // bool         bloom = true;

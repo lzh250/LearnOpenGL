@@ -6,5 +6,7 @@
         <file>shader/8.1.g_buffer.vs</file>
         <file>shader/8.1.deferred_shading.fs</file>
         <file>shader/8.1.deferred_shading.vs</file>
+        <file>shader/8.1.deferred_light_box.fs</file>
+        <file>shader/8.1.deferred_light_box.vs</file>
     </qresource>
 </RCC>

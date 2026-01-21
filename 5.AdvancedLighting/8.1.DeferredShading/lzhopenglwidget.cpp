@@ -21,6 +21,8 @@ LzhOpenGLWidget::~LzhOpenGLWidget()
     glDeleteRenderbuffers(1, &rbo_depth);
     glDeleteVertexArrays(1, &quad_vao);
     glDeleteBuffers(1, &quad_vbo);
+    glDeleteVertexArrays(1, &cube_vao);
+    glDeleteBuffers(1, &cube_vbo);
     doneCurrent();
 }
 
@@ -120,14 +122,69 @@ void LzhOpenGLWidget::initializeGL()
     shader_debug.Use();
     shader_debug.SetInt("fboAttachment", 0);
 
+    // setup 1x1 3D cube VAO
+    // -------------
+    float cube_vertices[] = {
+        // back face
+        -1.0f, -1.0f, -1.0f, // bottom-left
+         1.0f,  1.0f, -1.0f, // top-right
+         1.0f, -1.0f, -1.0f, // bottom-right
+         1.0f,  1.0f, -1.0f, // top-right
+        -1.0f, -1.0f, -1.0f, // bottom-left
+        -1.0f,  1.0f, -1.0f, // top-left
+        // front face
+        -1.0f, -1.0f,  1.0f, // bottom-left
+         1.0f, -1.0f,  1.0f, // bottom-right
+         1.0f,  1.0f,  1.0f, // top-right
+         1.0f,  1.0f,  1.0f, // top-right
+        -1.0f,  1.0f,  1.0f, // top-left
+        -1.0f, -1.0f,  1.0f, // bottom-left
+        // left face
+        -1.0f,  1.0f,  1.0f, // top-right
+        -1.0f,  1.0f, -1.0f, // top-left
+        -1.0f, -1.0f, -1.0f, // bottom-left
+        -1.0f, -1.0f, -1.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f, // bottom-right
+        -1.0f,  1.0f,  1.0f, // top-right
+        // right face
+         1.0f,  1.0f,  1.0f, // top-left
+         1.0f, -1.0f, -1.0f, // bottom-right
+         1.0f,  1.0f, -1.0f, // top-right
+         1.0f, -1.0f, -1.0f, // bottom-right
+         1.0f,  1.0f,  1.0f, // top-left
+         1.0f, -1.0f,  1.0f, // bottom-left
+        // bottom face
+        -1.0f, -1.0f, -1.0f, // top-right
+         1.0f, -1.0f, -1.0f, // top-left
+         1.0f, -1.0f,  1.0f, // bottom-left
+         1.0f, -1.0f,  1.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f, // bottom-right
+        -1.0f, -1.0f, -1.0f, // top-right
+        // top face
+        -1.0f,  1.0f, -1.0f, // top-left
+         1.0f,  1.0f , 1.0f, // bottom-right
+         1.0f,  1.0f, -1.0f, // top-right
+         1.0f,  1.0f,  1.0f, // bottom-right
+        -1.0f,  1.0f, -1.0f, // top-left
+        -1.0f,  1.0f,  1.0f  // bottom-left
+    };
+    glGenVertexArrays(1, &cube_vao);
+    glGenBuffers(1, &cube_vbo);
+    glBindVertexArray(cube_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, cube_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), &cube_vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+
     // setup plane VAO
     // -------------
     float quad_vertices[] = {
         // positions        // texture Coords
-        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-         1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
     };
     glGenVertexArrays(1, &quad_vao);
     glGenBuffers(1, &quad_vbo);
@@ -135,9 +192,9 @@ void LzhOpenGLWidget::initializeGL()
     glBindBuffer(GL_ARRAY_BUFFER, quad_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), &quad_vertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
     glBindVertexArray(0);
 }
 
@@ -150,6 +207,8 @@ void LzhOpenGLWidget::resizeGL(int w, int h)
     QMatrix4x4 projection = Perspective(fov, (float)w / h, near, far);
     shader_geometry_pass.Use();
     shader_geometry_pass.SetMat4("projection", projection);
+    shader_light_box.Use();
+    shader_light_box.SetMat4("projection", projection);
 }
 
 void LzhOpenGLWidget::paintGL()
@@ -174,10 +233,20 @@ void LzhOpenGLWidget::paintGL()
         backpack.Draw(shader_geometry_pass);
     }
 
+    // // 测试
+    // glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    // //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // shader_debug.Use();
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, g_position);        // 预览位置缓冲
+    // //glBindTexture(GL_TEXTURE_2D, g_normal);        // 预览法线缓冲
+    // //glBindTexture(GL_TEXTURE_2D, g_albedo_spec);   // 预览颜色缓冲
+    // RenderQuad();
+
     // 2. lighting pass: calculate lighting by iterating over a screen filled quad pixel-by-pixel using the gbuffer's content.
     // -----------------------------------------------------------------------------------------------------------------------
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader_lighting_pass.Use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_position);
@@ -200,14 +269,23 @@ void LzhOpenGLWidget::paintGL()
     }
     shader_lighting_pass.SetVec3("viewPos", cam_pos);
     // finally render quad
-    // // 测试结果
-    // shader_debug.Use();
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, g_position);        // 预览位置缓冲
-    // //glBindTexture(GL_TEXTURE_2D, g_normal);        // 预览法线缓冲
-    // //glBindTexture(GL_TEXTURE_2D, g_albedo_spec);   // 预览颜色缓冲
-
     RenderQuad();
+
+    // 3.1. render lights on top of scene
+    // ----------------------------------------------------------------------------------
+    glDisable(GL_DEPTH_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    shader_light_box.Use();
+    shader_light_box.SetMat4("view", view);
+    for (unsigned int i = 0; i < light_positions.size(); ++i)
+    {
+        model.setToIdentity();
+        model.translate(light_positions[i]);
+        model.scale(0.125f);
+        shader_light_box.SetMat4("model", model);
+        shader_light_box.SetVec3("lightColor", light_colors[i]);
+        RenderCube();
+    }
 }
 
 void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
@@ -275,6 +353,8 @@ void LzhOpenGLWidget::wheelEvent(QWheelEvent *event)
     QMatrix4x4 projection = Perspective(fov, (float)width() / height(), near, far);
     shader_geometry_pass.Use();
     shader_geometry_pass.SetMat4("projection", projection);
+    shader_light_box.Use();
+    shader_light_box.SetMat4("projection", projection);
 
     event->accept();
 }
@@ -347,6 +427,13 @@ void LzhOpenGLWidget::keyReleaseEvent(QKeyEvent *event)
     // {
     //     b_key_released = true;
     // }
+}
+
+void LzhOpenGLWidget::RenderCube()
+{
+    glBindVertexArray(cube_vao);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
 }
 
 void LzhOpenGLWidget::RenderQuad()
