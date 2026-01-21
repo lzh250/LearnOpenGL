@@ -39,8 +39,8 @@ void LzhOpenGLWidget::initializeGL()
     shader_light_box.Init(":/shader/8.1.deferred_light_box.vs", ":/shader/8.1.deferred_light_box.fs");
     shader_debug.Init(":/shader/8.1.fbo_debug.vs", ":/shader/8.1.fbo_debug.fs");
 
-    //QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
-    QString object_path = QCoreApplication::applicationDirPath() + "/res/nanosuit/nanosuit.obj";
+    QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
+    //QString object_path = QCoreApplication::applicationDirPath() + "/res/nanosuit/nanosuit.obj";
     backpack.LoadModel(object_path.toStdString());
 
     object_positions.push_back(QVector3D(-3.0,  -0.5, -3.0));
@@ -173,14 +173,40 @@ void LzhOpenGLWidget::paintGL()
         shader_geometry_pass.SetMat4("model", model);
         backpack.Draw(shader_geometry_pass);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
 
-    // 测试结果
-    shader_debug.Use();
+    // 2. lighting pass: calculate lighting by iterating over a screen filled quad pixel-by-pixel using the gbuffer's content.
+    // -----------------------------------------------------------------------------------------------------------------------
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    shader_lighting_pass.Use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_position);
-    //glBindTexture(GL_TEXTURE_2D, g_normal);
-    //glBindTexture(GL_TEXTURE_2D, g_albedo_spec);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, g_normal);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, g_albedo_spec);
+
+    // send light relevant uniforms
+    for (unsigned int i = 0; i < light_positions.size(); ++i)
+    {
+        shader_lighting_pass.SetVec3("lights[" + std::to_string(i) + "].Position", light_positions[i]);
+        shader_lighting_pass.SetVec3("lights[" + std::to_string(i) + "].Color", light_colors[i]);
+        // update attenuation parameters and calculate radius
+        const float linear = 0.7f;
+        const float quadratic = 1.8f;
+
+        shader_lighting_pass.SetFloat("lights[" + std::to_string(i) + "].Linear", linear);
+        shader_lighting_pass.SetFloat("lights[" + std::to_string(i) + "].Quadratic", quadratic);
+    }
+    shader_lighting_pass.SetVec3("viewPos", cam_pos);
+    // finally render quad
+    // // 测试结果
+    // shader_debug.Use();
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, g_position);        // 预览位置缓冲
+    // //glBindTexture(GL_TEXTURE_2D, g_normal);        // 预览法线缓冲
+    // //glBindTexture(GL_TEXTURE_2D, g_albedo_spec);   // 预览颜色缓冲
+
     RenderQuad();
 }
 
