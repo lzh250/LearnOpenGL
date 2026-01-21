@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/8.1.fbo_debug.fs</file>
+        <file>shader/8.1.fbo_debug.vs</file>
+        <file>shader/8.1.g_buffer.fs</file>
+        <file>shader/8.1.g_buffer.vs</file>
+    </qresource>
+</RCC>
