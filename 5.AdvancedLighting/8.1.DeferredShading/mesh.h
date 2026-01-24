@@ -97,8 +97,8 @@ public:
             string name = textures[i].type;
             if(name == "texture_diffuse")
                 number = to_string(diffuse_nr++);
-            // else if(name == "texture_specular")
-            //     number = to_string(specular_nr++);
+            else if(name == "texture_specular")
+                number = to_string(specular_nr++);
             // ...
 
             glUniform1i(glGetUniformLocation(shader.ID, (name + number).c_str()), i);

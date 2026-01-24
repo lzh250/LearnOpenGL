@@ -41,8 +41,8 @@ void LzhOpenGLWidget::initializeGL()
     shader_light_box.Init(":/shader/8.1.deferred_light_box.vs", ":/shader/8.1.deferred_light_box.fs");
     shader_debug.Init(":/shader/8.1.fbo_debug.vs", ":/shader/8.1.fbo_debug.fs");
 
-    QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
-    //QString object_path = QCoreApplication::applicationDirPath() + "/res/nanosuit/nanosuit.obj";
+    //QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
+    QString object_path = QCoreApplication::applicationDirPath() + "/res/nanosuit/nanosuit.obj";
     backpack.LoadModel(object_path.toStdString());
 
     object_positions.push_back(QVector3D(-3.0,  -0.5, -3.0));
@@ -246,7 +246,6 @@ void LzhOpenGLWidget::paintGL()
     // 2. lighting pass: calculate lighting by iterating over a screen filled quad pixel-by-pixel using the gbuffer's content.
     // -----------------------------------------------------------------------------------------------------------------------
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader_lighting_pass.Use();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_position);
@@ -271,9 +270,18 @@ void LzhOpenGLWidget::paintGL()
     // finally render quad
     RenderQuad();
 
-    // 3.1. render lights on top of scene
+    // 2.5. copy content of geometry's depth buffer to default framebuffer's depth buffer
     // ----------------------------------------------------------------------------------
-    glDisable(GL_DEPTH_TEST);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_buffer);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, defaultFramebufferObject()); // write to default framebuffer
+    // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
+    // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the
+    // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
+    glBlitFramebuffer(0, 0, width(), height(), 0, 0, width(), height(), GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+    // 3. render lights on top of scene
+    // ----------------------------------------------------------------------------------
+    //glDisable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
     shader_light_box.Use();
     shader_light_box.SetMat4("view", view);
