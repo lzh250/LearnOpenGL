@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/8.1.fbo_debug.fs</file>
+        <file>shader/8.1.fbo_debug.vs</file>
+        <file>shader/9.ssao.fs</file>
+        <file>shader/9.ssao.vs</file>
+        <file>shader/9.ssao_blur.fs</file>
+        <file>shader/9.ssao_geometry.fs</file>
+        <file>shader/9.ssao_geometry.vs</file>
+        <file>shader/9.ssao_lighting.fs</file>
+    </qresource>
+</RCC>
