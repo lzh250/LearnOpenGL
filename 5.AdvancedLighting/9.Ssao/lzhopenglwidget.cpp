@@ -3,6 +3,7 @@
 #include <QKeyEvent>
 #include <QDateTime>
 #include <QOpenGLFramebufferObjectFormat>
+#include <random>
 
 LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
     QOpenGLWidget(parent)
@@ -14,15 +15,21 @@ LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
 LzhOpenGLWidget::~LzhOpenGLWidget()
 {
     makeCurrent();
+
     glDeleteTextures(1, &g_position);
     glDeleteTextures(1, &g_normal);
     glDeleteTextures(1, &g_albedo);
-    glDeleteFramebuffers(1, &g_buffer);
     glDeleteRenderbuffers(1, &rbo_depth);
+    glDeleteFramebuffers(1, &g_buffer);
+
+    glDeleteTextures(1, &ssao_color_buffer);
+    glDeleteFramebuffers(1, &ssao_fbo);
+
     glDeleteVertexArrays(1, &quad_vao);
     glDeleteBuffers(1, &quad_vbo);
     glDeleteVertexArrays(1, &cube_vao);
     glDeleteBuffers(1, &cube_vbo);
+
     doneCurrent();
 }
 
@@ -37,8 +44,7 @@ void LzhOpenGLWidget::initializeGL()
     cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
 
     shader_geometry_pass.Init(":/shader/9.ssao_geometry.vs", ":/shader/9.ssao_geometry.fs");
-    // shader_lighting_pass.Init(":/shader/8.1.deferred_shading.vs", ":/shader/8.1.deferred_shading.fs");
-    // shader_light_box.Init(":/shader/8.1.deferred_light_box.vs", ":/shader/8.1.deferred_light_box.fs");
+    shader_ssao.Init(":/shader/9.ssao.vs", ":/shader/9.ssao.fs");
     shader_debug.Init(":/shader/8.1.fbo_debug.vs", ":/shader/8.1.fbo_debug.fs");
 
     QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
@@ -88,30 +94,60 @@ void LzhOpenGLWidget::initializeGL()
         qDebug() << "Framebuffer not complete!";
     }
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
-/*
-    // lighting info
-    // -------------
-    const unsigned int NR_LIGHTS = 32;
-    std::srand(13);
-    for(unsigned int i = 0; i < NR_LIGHTS; ++i)
+
+    // also create framebuffer to hold SSAO processing stage
+    // -----------------------------------------------------
+    glGenFramebuffers(1, &ssao_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
+    glGenTextures(1, &ssao_color_buffer);
+    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width(), height(), 0, GL_RED, GL_FLOAT, NULL);
+    glTextureParameteri(ssao_color_buffer, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTextureParameteri(ssao_color_buffer, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_color_buffer, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        // calculate slightly random offsets
-        float xPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
-        float yPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 4.0);
-        float zPos = static_cast<float>(((rand() % 100) / 100.0) * 6.0 - 3.0);
-        light_positions.push_back(QVector3D(xPos, yPos, zPos));
-        // also calculate random color
-        float rColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
-        float gColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
-        float bColor = static_cast<float>(((rand() % 100) / 200.0f) + 0.5); // between 0.5 and 1.0
-        light_colors.push_back(QVector3D(rColor, gColor, bColor));
+        std::cout << "SSAO Framebuffer not complete!" << std::endl;
+    }
+    shader_ssao.Use();
+    shader_ssao.SetInt("gPosition", 0);
+    shader_ssao.SetInt("gNormal", 1);
+    shader_ssao.SetInt("texNoise", 2);
+    shader_ssao.SetFloat("win_width", width());
+    shader_ssao.SetFloat("win_height", height());
+
+    // generate sample kernel
+    // ----------------------
+    std::uniform_real_distribution<GLfloat> random_floats(0.0, 1.0); // generates random floats between 0.0 and 1.0
+    std::default_random_engine generator;
+    for (unsigned int i = 0; i < 64; ++i)
+    {
+        QVector3D sample(random_floats(generator) * 2.0 - 1.0, random_floats(generator) * 2.0 - 1.0, random_floats(generator));
+        sample.normalize();
+        sample *= random_floats(generator);
+        float scale = float(i) / 64.0f;
+
+        // scale samples s.t. they're more aligned to center of kernel
+        scale = OurLerp(0.1f, 1.0f, scale * scale);
+        sample *= scale;
+        ssao_kernel.push_back(sample);
     }
 
-    shader_lighting_pass.Use();
-    shader_lighting_pass.SetInt("gPosition", 0);
-    shader_lighting_pass.SetInt("gNormal", 1);
-    shader_lighting_pass.SetInt("gAlbedoSpec", 2);
-*/
+    // generate noise texture
+    // ----------------------
+    for (unsigned int i = 0; i < 16; i++)
+    {
+        QVector3D noise(random_floats(generator) * 2.0 - 1.0, random_floats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
+        ssao_noise.push_back(noise);
+    }
+    glGenTextures(1, &noise_texture);
+    glBindTexture(GL_TEXTURE_2D, noise_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssao_noise[0]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
     shader_debug.Use();
     shader_debug.SetInt("fboAttachment", 0);
 }
@@ -125,8 +161,8 @@ void LzhOpenGLWidget::resizeGL(int w, int h)
     QMatrix4x4 projection = Perspective(fov, (float)w / h, near, far);
     shader_geometry_pass.Use();
     shader_geometry_pass.SetMat4("projection", projection);
-    // shader_light_box.Use();
-    // shader_light_box.SetMat4("projection", projection);
+    shader_ssao.Use();
+    shader_ssao.SetMat4("projection", projection);
 }
 
 void LzhOpenGLWidget::paintGL()
@@ -155,74 +191,39 @@ void LzhOpenGLWidget::paintGL()
     shader_geometry_pass.SetMat4("model", model);
     backpack.Draw(shader_geometry_pass);
 
-
     // 测试
-    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
-    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shader_debug.Use();
-    glActiveTexture(GL_TEXTURE0);
+    //glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    //shader_debug.Use();
+    //glActiveTexture(GL_TEXTURE0);
     //glBindTexture(GL_TEXTURE_2D, g_position);      // 预览位置缓冲
-    glBindTexture(GL_TEXTURE_2D, g_normal);        // 预览法线缓冲
+    //glBindTexture(GL_TEXTURE_2D, g_normal);        // 预览法线缓冲
     //glBindTexture(GL_TEXTURE_2D, g_albedo);        // 预览颜色缓冲
-    RenderQuad();
-/*
-    // 2. lighting pass: calculate lighting by iterating over a screen filled quad pixel-by-pixel using the gbuffer's content.
-    // -----------------------------------------------------------------------------------------------------------------------
-    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
-    shader_lighting_pass.Use();
+    //RenderQuad();
+
+    // 2. generate SSAO texture
+    // ------------------------
+    glBindFramebuffer(GL_FRAMEBUFFER, ssao_fbo);
+    glClear(GL_COLOR_BUFFER_BIT);
+    shader_ssao.Use();
+    //    Send kernel + rotation
+    for (unsigned int i = 0; i < 64; ++i)
+    {
+        shader_ssao.SetVec3("samples[" + std::to_string(i) + "]", ssao_kernel[i]);
+    }
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, g_position);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, g_normal);
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, g_albedo_spec);
-
-    // send light relevant uniforms
-    for (unsigned int i = 0; i < light_positions.size(); ++i)
-    {
-        shader_lighting_pass.SetVec3("lights[" + std::to_string(i) + "].Position", light_positions[i]);
-        shader_lighting_pass.SetVec3("lights[" + std::to_string(i) + "].Color", light_colors[i]);
-        // update attenuation parameters and calculate radius
-        const float constant = 1.0f; // note that we don't send this to the shader, we assume it is always 1.0 (in our case)
-        const float linear = 0.7f;
-        const float quadratic = 1.8f;
-
-        shader_lighting_pass.SetFloat("lights[" + std::to_string(i) + "].Linear", linear);
-        shader_lighting_pass.SetFloat("lights[" + std::to_string(i) + "].Quadratic", quadratic);
-        // then calculate radius of light volume/sphere
-        const float maxBrightness = std::fmaxf(std::fmaxf(light_colors[i].x(), light_colors[i].y()), light_colors[i].z());
-        float radius = (-linear + std::sqrt(linear * linear - 4 * quadratic * (constant - (256.0f / 5.0f) * maxBrightness))) / (2.0f * quadratic);
-        shader_lighting_pass.SetFloat("lights[" + std::to_string(i) + "].Radius", radius);
-    }
-    shader_lighting_pass.SetVec3("viewPos", cam_pos);
-    // finally render quad
+    glBindTexture(GL_TEXTURE_2D, noise_texture);
     RenderQuad();
 
-    // 2.5. copy content of geometry's depth buffer to default framebuffer's depth buffer
-    // ----------------------------------------------------------------------------------
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_buffer);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, defaultFramebufferObject()); // write to default framebuffer
-    // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
-    // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the
-    // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
-    glBlitFramebuffer(0, 0, width(), height(), 0, 0, width(), height(), GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-
-    // 3. render lights on top of scene
-    // ----------------------------------------------------------------------------------
-    //glDisable(GL_DEPTH_TEST);
+    // 测试
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
-    shader_light_box.Use();
-    shader_light_box.SetMat4("view", view);
-    for (unsigned int i = 0; i < light_positions.size(); ++i)
-    {
-        model.setToIdentity();
-        model.translate(light_positions[i]);
-        model.scale(0.125f);
-        shader_light_box.SetMat4("model", model);
-        shader_light_box.SetVec3("lightColor", light_colors[i]);
-        RenderCube();
-    }
-*/
+    shader_debug.Use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer);  // 预览位置缓冲
+    RenderQuad();
 }
 
 void LzhOpenGLWidget::mouseMoveEvent(QMouseEvent *event)
@@ -460,6 +461,11 @@ void LzhOpenGLWidget::RenderQuad()
     glBindVertexArray(quad_vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
+}
+
+float LzhOpenGLWidget::OurLerp(float a, float b, float f)
+{
+    return a + f * (b - a);
 }
 
 QMatrix4x4 LzhOpenGLWidget::LookAt(QVector3D &eye, const QVector3D &center, const QVector3D &up)

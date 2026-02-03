@@ -30,6 +30,9 @@ private:
     void RenderCube();
     void RenderQuad();
 
+    // 加速插值
+    float OurLerp(float a, float b, float f);
+
     QMatrix4x4 LookAt( QVector3D &eye, const QVector3D &center, const QVector3D &up);
     QMatrix4x4 Perspective(float fov, float aspect, float near, float far);
     QVector4D MakeQuaternion(QVector3D rotation_axis, double radian);
@@ -39,16 +42,21 @@ private:
 private:
     Model backpack;
 
+    Shader shader_geometry_pass;
     unsigned int g_buffer;
     unsigned int g_position, g_normal, g_albedo;
     unsigned int rbo_depth;
 
+    Shader shader_ssao;
+    unsigned int ssao_fbo;
+    unsigned int ssao_color_buffer;
+    QVector<QVector3D> ssao_kernel;
+    QVector<QVector3D> ssao_noise;
+    unsigned int noise_texture;
+
     QVector<QVector3D> light_positions;
     QVector<QVector3D> light_colors;
 
-    Shader shader_geometry_pass;
-    Shader shader_lighting_pass;
-    Shader shader_light_box;
     Shader shader_debug;
 
     unsigned int quad_vao = 0, quad_vbo = 0;

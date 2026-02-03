@@ -1,0 +1,28 @@
+
+vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+
+这段代码的意思是计算一个与给定法线向量（normal）垂直的切线向量（tangent），具体步骤如下：
+1. 计算随机向量与法线向量的点积：dot(randomvec, normal) 计算随机向量 randomvec 与法线向量 normal 的点积。
+2. 投影随机向量到法线方向：normal * dot(randomvec, normal) 得到随机向量在法线方向上的投影。
+3. 计算切线向量：randomvec - normal * dot(randomvec, normal) 得到一个与法线垂直的向量，即切线向量。
+4. 归一化切线向量：normalize 函数将切线向量归一化为单位向量。
+
+这段代码在图形学中常用于生成与法线垂直的切线向量，例如在光照计算或纹理映射中。需要注意的是，normalize 和 dot 函数的具体实现可能依赖于所使用的库或编程语言。例如在DirectX中，可以使用 D3DXVec3Normalize 和 D3DXVec3Dot 函数进行归一化和点积计算。
+推导过程如下：
+
+
+推导过程：
+给定一个随机向量 randomvec 和一个单位法线向量 normal，我们希望得到一个位于切线空间中的向量 tangent，该向量与 normal 正交。推导过程如下：
+
+减去法线方向的分量：
+首先，我们计算 randomvec 在 normal 方向上的投影，即 dot(randomvec, normal) * normal。然后，从 randomvec 中减去这个投影，得到一个与 normal 正交的向量：
+tangent=randomvec−normal⋅dot(randomvec,normal)
+
+归一化：
+为了确保 tangent 是一个单位向量，我们对其进行归一化处理：
+
+tangent=normalize(tangent)
+综上所述，最终的推导公式为：
+vec3tangent=normalize(randomvec−normal⋅dot(randomvec,normal))
+
+这个公式确保了 tangent 向量位于切线空间中，并且与 normal 正交。这种推导方法在计算机图形学中常用于生成切线空间中的正交基向量，例如在法线贴图计算中12。
