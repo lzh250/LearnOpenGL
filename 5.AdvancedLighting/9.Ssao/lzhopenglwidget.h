@@ -58,8 +58,9 @@ private:
     unsigned int ssao_blur_fbo;
     unsigned int ssao_color_buffer_flur;
 
-    QVector<QVector3D> light_positions;
-    QVector<QVector3D> light_colors;
+    Shader shader_lighting_pass;
+    QVector3D light_position;
+    QVector3D light_color;
 
     Shader shader_debug;
 

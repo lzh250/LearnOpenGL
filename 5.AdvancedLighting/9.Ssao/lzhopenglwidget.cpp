@@ -50,6 +50,7 @@ void LzhOpenGLWidget::initializeGL()
     shader_geometry_pass.Init(":/shader/9.ssao_geometry.vs", ":/shader/9.ssao_geometry.fs");
     shader_ssao.Init(":/shader/9.ssao.vs", ":/shader/9.ssao.fs");
     shader_ssao_blur.Init(":/shader/9.ssao.vs", ":/shader/9.ssao_blur.fs");
+    shader_lighting_pass.Init(":/shader/9.ssao.vs", ":/shader/9.ssao_lighting.fs");
     shader_debug.Init(":/shader/8.1.fbo_debug.vs", ":/shader/8.1.fbo_debug.fs");
 
     //QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
@@ -170,6 +171,14 @@ void LzhOpenGLWidget::initializeGL()
     shader_ssao_blur.Use();
     shader_ssao_blur.SetInt("ssaoInput", 0);
 
+    light_position = QVector3D(2.0, 4.0, -2.0);
+    light_color = QVector3D(0.2, 0.2, 0.7);
+    shader_lighting_pass.Use();
+    shader_lighting_pass.SetInt("gPosition", 0);
+    shader_lighting_pass.SetInt("gNormal", 1);
+    shader_lighting_pass.SetInt("gAlbedo", 2);
+    shader_lighting_pass.SetInt("ssao", 3);
+
     shader_debug.Use();
     shader_debug.SetInt("fboAttachment", 0);
 }
@@ -255,13 +264,36 @@ void LzhOpenGLWidget::paintGL()
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, ssao_color_buffer);
     RenderQuad();
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // 测试
+    // // 测试
+    // glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    // shader_debug.Use();
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, ssao_color_buffer_flur);  // 预览位置缓冲
+    // RenderQuad();
+
+    // 4. lighting pass: traditional deferred Blinn-Phong lighting with added screen-space ambient occlusion
+    // -----------------------------------------------------------------------------------------------------
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
-    shader_debug.Use();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    shader_lighting_pass.Use();
+    // send light relevant uniforms
+    QVector3D light_pos_view = QVector3D(view * QVector4D(light_position));
+    shader_lighting_pass.SetVec3("light.Position", light_pos_view);
+    shader_lighting_pass.SetVec3("light.Color", light_color);
+    // Update attenuation parameters
+    const float linear    = 0.09f;
+    const float quadratic = 0.032f;
+    shader_lighting_pass.SetFloat("light.Linear", linear);
+    shader_lighting_pass.SetFloat("light.Quadratic", quadratic);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer_flur);  // 预览位置缓冲
+    glBindTexture(GL_TEXTURE_2D, g_position);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, g_normal);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, g_albedo);
+    glActiveTexture(GL_TEXTURE3); // add extra SSAO texture to lighting pass
+    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer_flur);
     RenderQuad();
 }
 
