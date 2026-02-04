@@ -47,8 +47,8 @@ void LzhOpenGLWidget::initializeGL()
     shader_ssao.Init(":/shader/9.ssao.vs", ":/shader/9.ssao.fs");
     shader_debug.Init(":/shader/8.1.fbo_debug.vs", ":/shader/8.1.fbo_debug.fs");
 
-    QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
-    //QString object_path = QCoreApplication::applicationDirPath() + "/res/nanosuit/nanosuit.obj";
+    //QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
+    QString object_path = QCoreApplication::applicationDirPath() + "/res/nanosuit/nanosuit.obj";
     backpack.LoadModel(object_path.toStdString());
 
     glGenFramebuffers(1, &g_buffer);
