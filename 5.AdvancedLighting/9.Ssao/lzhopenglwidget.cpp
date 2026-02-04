@@ -22,8 +22,12 @@ LzhOpenGLWidget::~LzhOpenGLWidget()
     glDeleteRenderbuffers(1, &rbo_depth);
     glDeleteFramebuffers(1, &g_buffer);
 
+    glDeleteTextures(1, &noise_texture);
     glDeleteTextures(1, &ssao_color_buffer);
     glDeleteFramebuffers(1, &ssao_fbo);
+
+    glDeleteTextures(1, &ssao_color_buffer_flur);
+    glDeleteFramebuffers(1, &ssao_blur_fbo);
 
     glDeleteVertexArrays(1, &quad_vao);
     glDeleteBuffers(1, &quad_vbo);
@@ -45,6 +49,7 @@ void LzhOpenGLWidget::initializeGL()
 
     shader_geometry_pass.Init(":/shader/9.ssao_geometry.vs", ":/shader/9.ssao_geometry.fs");
     shader_ssao.Init(":/shader/9.ssao.vs", ":/shader/9.ssao.fs");
+    shader_ssao_blur.Init(":/shader/9.ssao.vs", ":/shader/9.ssao_blur.fs");
     shader_debug.Init(":/shader/8.1.fbo_debug.vs", ":/shader/8.1.fbo_debug.fs");
 
     //QString object_path = QCoreApplication::applicationDirPath() + "/res/backpack/backpack.obj";
@@ -107,7 +112,7 @@ void LzhOpenGLWidget::initializeGL()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_color_buffer, 0);
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        std::cout << "SSAO Framebuffer not complete!" << std::endl;
+        qDebug() << "SSAO Framebuffer not complete!";
     }
     shader_ssao.Use();
     shader_ssao.SetInt("gPosition", 0);
@@ -147,6 +152,23 @@ void LzhOpenGLWidget::initializeGL()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // generate blur stage
+    glGenFramebuffers(1, &ssao_blur_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, ssao_blur_fbo);
+    glGenTextures(1, &ssao_color_buffer_flur);
+    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer_flur);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width(), height(), 0, GL_RED, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssao_color_buffer_flur, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        qDebug() << "SSAO Blur Framebuffer not complete!";
+    }
+
+    shader_ssao_blur.Use();
+    shader_ssao_blur.SetInt("ssaoInput", 0);
 
     shader_debug.Use();
     shader_debug.SetInt("fboAttachment", 0);
@@ -218,11 +240,28 @@ void LzhOpenGLWidget::paintGL()
     glBindTexture(GL_TEXTURE_2D, noise_texture);
     RenderQuad();
 
+    // // 测试
+    // glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    // shader_debug.Use();
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(GL_TEXTURE_2D, ssao_color_buffer);  // 预览位置缓冲
+    // RenderQuad();
+
+    // 3. blur SSAO texture to remove noise
+    // ------------------------------------
+    glBindFramebuffer(GL_FRAMEBUFFER, ssao_blur_fbo);
+    glClear(GL_COLOR_BUFFER_BIT);
+    shader_ssao_blur.Use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer);
+    RenderQuad();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     // 测试
     glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
     shader_debug.Use();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer);  // 预览位置缓冲
+    glBindTexture(GL_TEXTURE_2D, ssao_color_buffer_flur);  // 预览位置缓冲
     RenderQuad();
 }
 

@@ -54,6 +54,10 @@ private:
     QVector<QVector3D> ssao_noise;
     unsigned int noise_texture;
 
+    Shader shader_ssao_blur;
+    unsigned int ssao_blur_fbo;
+    unsigned int ssao_color_buffer_flur;
+
     QVector<QVector3D> light_positions;
     QVector<QVector3D> light_colors;
 
