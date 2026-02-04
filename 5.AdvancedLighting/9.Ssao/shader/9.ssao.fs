@@ -28,7 +28,7 @@ void main()
     vec3 normal = normalize(texture(gNormal, TexCoords).rgb);
     vec3 randomVec = normalize(texture(texNoise, TexCoords * noiseScale).xyz);  // 相当于平铺在屏幕上的随机旋转向量的4x4纹理的xyz取值（纹理GL_TEXTURE_WRAP_S和T的参数GL_REPEAT）
     // create TBN change-of-basis matrix: from tangent-space to view-space
-    vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));      // 我猜：用4x4随机数向量来计算，是获得不同随机方向的基向量让切线空间有一定的随机旋转角度吧？但为什么要这样？如果定死一个计算向量代替4x4随机向量，绘制会收到影响吗？
+    vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));      // 我猜：用4x4随机数向量来计算，是获得不同随机方向的基向量让切线空间有一定的随机旋转角度吧？但为什么要这样？如果定死一个计算向量代替4x4随机向量，绘制会受到影响吗，难道就不能达到要求了？
     vec3 bitangent = cross(normal, tangent);
     mat3 TBN = mat3(tangent, bitangent, normal);
     // iterate over the sample kernel and calculate occlusion factor
@@ -48,9 +48,15 @@ void main()
         // get sample depth
         float sampleDepth = texture(gPosition, offset.xy).z; // get depth value of kernel sample
 
+        float frag
+
         // range check & accumulate
         float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragPos.z - sampleDepth));
-        occlusion += (sampleDepth >= samplePos.z + bias ? 1.0 : 0.0) * rangeCheck;
+
+        // 1.教程原有的：
+        // occlusion += (sampleDepth >= samplePos.z + bias ? 1.0 : 0.0) * rangeCheck;
+        // 2.我觉得不对，修改的：
+        occlusion += (sampleDepth >= fragPos.z + bias ? 1.0 : 0.0) * rangeCheck;
     }
     occlusion = 1.0 - (occlusion / kernelSize);
 
