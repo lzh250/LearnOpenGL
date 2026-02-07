@@ -70,6 +70,7 @@ void LzhOpenGLWidget::paintGL()
     shader.SetMat4("view", view);
     shader.SetVec3("camPos", cam_pos);
 
+    // render rows*column number of spheres with varying metallic/roughness values scaled by rows and columns respectively
     for (int row = 0; row < nr_rows; ++row)
     {
         shader.SetFloat("metallic", (float)row / (float)nr_rows);
@@ -104,6 +105,43 @@ void LzhOpenGLWidget::paintGL()
             shader.SetMat3("normalMatrix", normal_matrix.transposed());
             RenderSphere();
         }
+    }
+
+    // render light source (simply re-render sphere at light positions)
+    // this looks a bit off as we use the same shader, but it'll make their positions obvious and
+    // keeps the codeprint small.
+    for (unsigned int i = 0; i < sizeof(light_positions) / sizeof(light_positions[0]); ++i)
+    {
+        QVector3D newPos = light_positions[i] + QVector3D(sin(i * 0.1) * 5.0, 0.0, 0.0);
+        newPos = light_positions[i];
+        shader.SetVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+        shader.SetVec3("lightColors[" + std::to_string(i) + "]", light_colors[i]);
+
+        QMatrix4x4 model;
+        model.translate(newPos);
+        model.scale(0.5f);
+        shader.SetMat4("model", model);
+
+        TmpMatrix mat3(3, 3);
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+            {
+                mat3(i, j) = model(i, j);
+            }
+        }
+        mat3 = GaussJordanInverse(mat3);
+        QMatrix3x3 normal_matrix;
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+            {
+                model(i, j) = mat3(i, j);
+            }
+        }
+
+        shader.SetMat3("normalMatrix", normal_matrix.transposed());
+        RenderSphere();
     }
 }
 
