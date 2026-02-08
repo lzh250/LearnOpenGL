@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/1.1.pbr.fs</file>
+        <file>shader/1.1.pbr.vs</file>
+    </qresource>
+</RCC>
