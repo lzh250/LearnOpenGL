@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shader/1.1.pbr.fs</file>
+        <file>shader/1.1.pbr.vs</file>
+        <file>res/rusted_iron/albedo.png</file>
+        <file>res/rusted_iron/ao.png</file>
+        <file>res/rusted_iron/metallic.png</file>
+        <file>res/rusted_iron/normal.png</file>
+        <file>res/rusted_iron/roughness.png</file>
+    </qresource>
+</RCC>
