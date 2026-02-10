@@ -51,6 +51,10 @@ public:
     int nr_columns = 7;
     float spacing  = 2.5;
 
+    unsigned int hdr_texture;
+
+    Shader test_shader;
+
     unsigned int quad_vao = 0, quad_vbo = 0;
     unsigned int cube_vao = 0, cube_vbo = 0;
     unsigned int sphere_vao = 0;

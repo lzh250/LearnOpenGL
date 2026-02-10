@@ -3,6 +3,7 @@
 #include <QKeyEvent>
 #include <QDateTime>
 #include <QOpenGLFramebufferObjectFormat>
+#include "stb_image.h"
 
 
 LzhOpenGLWidget::LzhOpenGLWidget(QWidget *parent) :
@@ -43,10 +44,38 @@ void LzhOpenGLWidget::initializeGL()
     cam_up    = QVector3D(0.0f, 1.0f,  0.0f);
 
     pbr_shader.Init(":/shader/1.1.pbr.vs", ":/shader/1.1.pbr.fs");
+    test_shader.Init(":/shader/test.vs", ":/shader/test.fs");
 
     pbr_shader.Use();
     pbr_shader.SetVec3("albedo", QVector3D(0.5f, 0.0f, 0.0f));
     pbr_shader.SetFloat("ao", 1.0f);
+
+    // pbr: load the HDR environment map
+    // ---------------------------------
+    stbi_set_flip_vertically_on_load(true);
+    int width = 0, height = 0, nrComponents = 0;
+    QString object_path = QCoreApplication::applicationDirPath() + "/hdr/newport_loft.hdr";
+    unsigned char *data = stbi_load(object_path.toStdString().c_str(), &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        glGenTextures(1, &hdr_texture);
+        glBindTexture(GL_TEXTURE_2D, hdr_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Failed to load HDR image." << std::endl;
+    }
+
+    test_shader.Use();
+    test_shader.SetInt("tex", 0);
 }
 
 void LzhOpenGLWidget::resizeGL(int w, int h)
@@ -64,6 +93,12 @@ void LzhOpenGLWidget::paintGL()
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    test_shader.Use();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, hdr_texture);
+    RenderQuad();
+    return;
 
     QMatrix4x4 view = LookAt(cam_pos, cam_pos + cam_front, cam_up);
 

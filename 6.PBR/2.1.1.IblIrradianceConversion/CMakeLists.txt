@@ -34,6 +34,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         lzhopenglwidget.h lzhopenglwidget.cpp
         res.qrc
         shader.h
+        stb_image.h
+        stb_image.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET IblIrradianceConversion APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
